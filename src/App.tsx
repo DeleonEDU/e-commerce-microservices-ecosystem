@@ -1,0 +1,145 @@
+import React from 'react';
+import { BrowserRouter as Router, Routes, Route, Link, useNavigate, Navigate } from 'react-router-dom';
+import { Provider, useSelector, useDispatch } from 'react-redux';
+import { store, RootState } from './store/store';
+import { ShoppingCart, Package, Home as HomeIcon, LogOut } from 'lucide-react';
+import LoginPage from './features/auth/LoginPage';
+import RegisterPage from './features/auth/RegisterPage';
+import { logout, setUser } from './features/auth/authSlice';
+import { useGetProfileQuery } from './api/authApiSlice';
+
+import Button from './components/ui/Button';
+
+import CatalogPage from './pages/CatalogPage';
+import ProductDetailPage from './pages/ProductDetailPage';
+import CartPage from './pages/CartPage';
+import DashboardPage from './pages/DashboardPage';
+import CheckoutPage from './pages/CheckoutPage';
+import SellerDashboardPage from './pages/SellerDashboardPage';
+import { selectCartItemsCount } from './features/cart/cartSlice';
+
+const Navbar = () => {
+  const { isAuthenticated, user } = useSelector((state: RootState) => state.auth);
+  const cartItemsCount = useSelector(selectCartItemsCount);
+  const dispatch = useDispatch();
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    dispatch(logout());
+    navigate('/login');
+  };
+
+  return (
+    <nav className="bg-white/80 backdrop-blur-md border-b border-slate-100 sticky top-0 z-50 transition-all duration-300">
+      <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
+        <Link to="/catalog" className="text-2xl font-bold text-slate-900 flex items-center gap-2.5 group">
+          <div className="bg-brand-600 text-white p-2 rounded-xl group-hover:rotate-6 transition-transform duration-300 shadow-soft">
+            <HomeIcon size={22} />
+          </div>
+          <span className="tracking-tight">Marketplace</span>
+        </Link>
+        
+        <div className="hidden md:flex items-center gap-10">
+          <Link to="/catalog" className="text-slate-600 hover:text-brand-600 font-semibold transition-colors text-sm">Каталог</Link>
+          {user?.role === 'seller' && (
+            <Link to="/seller/dashboard" className="text-slate-600 hover:text-brand-600 font-semibold transition-colors text-sm flex items-center gap-2">
+              <Package size={18} />
+              <span>Панель продавця</span>
+            </Link>
+          )}
+          <Link to="/cart" className="text-slate-600 hover:text-brand-600 flex items-center gap-2 font-semibold transition-colors text-sm">
+            <div className="relative">
+              <ShoppingCart size={20} />
+              {cartItemsCount > 0 && (
+                <span className="absolute -top-1.5 -right-1.5 bg-brand-600 text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center shadow-soft animate-fade-in">
+                  {cartItemsCount}
+                </span>
+              )}
+            </div>
+            <span>Кошик</span>
+          </Link>
+        </div>
+        
+        <div className="flex items-center gap-4">
+          {isAuthenticated ? (
+            <div className="flex items-center gap-3">
+              <Link to="/dashboard" className="flex items-center gap-2.5 text-slate-700 font-semibold bg-slate-50 px-4 py-2 rounded-xl border border-slate-100 hover:bg-slate-100 transition-colors">
+                <div className="w-6 h-6 rounded-full bg-brand-100 text-brand-600 flex items-center justify-center text-xs">
+                  {user?.username?.charAt(0).toUpperCase() || 'U'}
+                </div>
+                <span className="text-sm">{user?.username || 'Користувач'}</span>
+              </Link>
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={handleLogout}
+                className="text-slate-400 hover:text-error"
+                title="Вийти"
+              >
+                <LogOut size={20} />
+              </Button>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2">
+              <Link to="/login">
+                <Button variant="ghost" size="md" className="hidden sm:inline-flex">Увійти</Button>
+              </Link>
+              <Link to="/register">
+                <Button size="md" className="shadow-soft px-6">Приєднатися</Button>
+              </Link>
+            </div>
+          )}
+        </div>
+      </div>
+    </nav>
+  );
+};
+
+const AppContent = () => {
+  const { token, isAuthenticated } = useSelector((state: RootState) => state.auth);
+  const dispatch = useDispatch();
+  
+  // Якщо є токен, але ми ще не завантажили дані користувача
+  const { data: profileData, error: profileError } = useGetProfileQuery(undefined, {
+    skip: !token || !isAuthenticated,
+  });
+
+  React.useEffect(() => {
+    if (profileData) {
+      dispatch(setUser(profileData));
+    }
+    if (profileError) {
+      // Якщо токен недійсний або сталася помилка - виходимо
+      dispatch(logout());
+    }
+  }, [profileData, profileError, dispatch]);
+
+  return (
+    <div className="min-h-screen bg-gray-50 font-sans">
+      <Navbar />
+      <main className="max-w-7xl mx-auto">
+        <Routes>
+          <Route path="/" element={<Navigate to="/catalog" replace />} />
+          <Route path="/catalog" element={<CatalogPage />} />
+          <Route path="/product/:id" element={<ProductDetailPage />} />
+          <Route path="/cart" element={<CartPage />} />
+          <Route path="/checkout" element={<CheckoutPage />} />
+          <Route path="/dashboard" element={<DashboardPage />} />
+          <Route path="/seller/dashboard" element={<SellerDashboardPage />} />
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/register" element={<RegisterPage />} />
+        </Routes>
+      </main>
+    </div>
+  );
+};
+
+export default function App() {
+  return (
+    <Provider store={store}>
+      <Router>
+        <AppContent />
+      </Router>
+    </Provider>
+  );
+}

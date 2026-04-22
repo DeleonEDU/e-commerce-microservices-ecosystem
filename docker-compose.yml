@@ -1,0 +1,178 @@
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: ecommerce_db
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_MULTIPLE_DATABASES: auth_db,product_db,order_db,payment_db,rating_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init-db.sh:/docker-entrypoint-initdb.d/init-db.sh
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    networks:
+      - ecommerce_network
+
+  redis:
+    image: redis:7-alpine
+    container_name: ecommerce_redis
+    restart: always
+    ports:
+      - "6379:6379"
+    networks:
+      - ecommerce_network
+
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: ecommerce_rabbitmq
+    restart: always
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-guest}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASS:-guest}
+    networks:
+      - ecommerce_network
+
+  auth_service:
+    build: ./services/auth_service
+    container_name: auth_service
+    env_file: .env
+    environment:
+      - POSTGRES_HOST=db
+      - POSTGRES_PORT=5432
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      ecommerce_network:
+        aliases:
+          # RFC-валідне ім’я для HTTP Host (без "_"); інакше Django відхиляє auth_service:8001
+          - authservice
+
+  product_service:
+    build: ./services/product_service
+    container_name: product_service
+    env_file: .env
+    environment:
+      - POSTGRES_HOST=db
+      - POSTGRES_PORT=5432
+      - REDIS_HOST=redis
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    networks:
+      ecommerce_network:
+        aliases:
+          - productservice
+
+  order_service:
+    build: ./services/order_service
+    container_name: order_service
+    env_file: .env
+    environment:
+      - ORDER_DATABASE_URL=postgresql://postgres:postgres@db:5432/order_db
+      - REDIS_HOST=redis
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    networks:
+      - ecommerce_network
+
+  order_worker:
+    build: ./services/order_service
+    container_name: order_worker
+    restart: always
+    command: python worker.py
+    env_file: .env
+    environment:
+      - ORDER_DATABASE_URL=postgresql://postgres:postgres@db:5432/order_db
+      - RABBITMQ_HOST=rabbitmq
+    depends_on:
+      db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_started
+      order_service:
+        condition: service_started
+    networks:
+      - ecommerce_network
+
+  payment_service:
+    build: ./services/payment_service
+    container_name: payment_service
+    env_file: .env
+    environment:
+      - PAYMENT_DATABASE_URL=postgresql://postgres:postgres@db:5432/payment_db
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - ecommerce_network
+
+  rating_service:
+    build: ./services/rating_service
+    container_name: rating_service
+    env_file: .env
+    environment:
+      - RATING_DATABASE_URL=postgresql://postgres:postgres@db:5432/rating_db
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - ecommerce_network
+
+  gateway:
+    image: nginx:alpine
+    container_name: ecommerce_gateway
+    restart: always
+    ports:
+      - "80:80"
+    volumes:
+      - ./gateway/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - auth_service
+      - product_service
+      - order_service
+      - payment_service
+      - rating_service
+    networks:
+      - ecommerce_network
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: dev
+    container_name: ecommerce_frontend
+    restart: always
+    ports:
+      - "3000:3000"
+    depends_on:
+      - gateway
+    environment:
+      - DISABLE_HMR=true
+      # Vite proxy /api → gateway (у контейнері 127.0.0.1:80 не той хост)
+      - VITE_API_PROXY_TARGET=http://gateway:80
+    networks:
+      - ecommerce_network
+
+networks:
+  ecommerce_network:
+    driver: bridge
+
+volumes:
+  postgres_data:

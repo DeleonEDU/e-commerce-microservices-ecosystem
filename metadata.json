@@ -1,0 +1,5 @@
+{
+  "name": "E-commerce Microservices Ecosystem",
+  "description": "A microservices-based e-commerce platform with Django DRF, FastAPI, PostgreSQL, Redis, RabbitMQ, and Stripe integration.",
+  "requestFramePermissions": []
+}

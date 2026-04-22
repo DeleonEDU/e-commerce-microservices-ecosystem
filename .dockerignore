@@ -1,0 +1,9 @@
+node_modules
+dist
+.git
+.DS_Store
+**/*.log
+services/**/venv
+services/**/__pycache__
+services/**/.pytest_cache
+services/**/.mypy_cache
