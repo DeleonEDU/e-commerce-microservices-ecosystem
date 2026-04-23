@@ -71,6 +71,15 @@ def list_user_orders(user_id: int, db: Session = Depends(get_db)):
     )
 
 
+@app.get("/users/{user_id}/has_bought/{product_id}")
+def check_user_bought_product(user_id: int, product_id: int, db: Session = Depends(get_db)):
+    has_bought = db.query(models.OrderItem).join(models.Order).filter(
+        models.Order.user_id == user_id,
+        models.OrderItem.product_id == product_id
+    ).first() is not None
+    return {"has_bought": has_bought}
+
+
 @app.get("/orders/{order_id}", response_model=schemas.Order)
 def get_order(order_id: int, db: Session = Depends(get_db)):
     order = (
@@ -133,6 +142,18 @@ def create_order(order_data: schemas.OrderCreate, db: Session = Depends(get_db))
                     status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                     detail=f"Product {item.product_id} is currently being processed. Try again later.",
                 )
+            
+            # Decrement stock synchronously via API
+            try:
+                dec_resp = requests.post(
+                    f"http://productservice:8003/products/{item.product_id}/decrement_stock/",
+                    json={"quantity": item.quantity},
+                    timeout=5
+                )
+                if dec_resp.status_code != 200:
+                    raise HTTPException(status_code=400, detail=dec_resp.json().get("detail", "Failed to decrement stock"))
+            except requests.RequestException:
+                raise HTTPException(status_code=503, detail="Product service unavailable")
             
             total_price += price * item.quantity
             order_items.append(
