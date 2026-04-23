@@ -13,6 +13,7 @@ class User(AbstractUser):
         default=UserRole.BUYER
     )
     email = models.EmailField(unique=True)
+    phone_number = models.CharField(max_length=20, blank=True, null=True)
 
     # Використовуємо email як логін
     USERNAME_FIELD = 'email'

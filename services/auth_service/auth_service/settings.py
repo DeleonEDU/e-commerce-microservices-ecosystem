@@ -7,7 +7,7 @@ load_dotenv()
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'django-insecure-key-for-dev')
+SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'product-service-secret-needs-to-be-at-least-32-bytes-long')
 DEBUG = True
 ALLOWED_HOSTS = ['*']
 
