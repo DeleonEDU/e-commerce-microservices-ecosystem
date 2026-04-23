@@ -19,8 +19,21 @@ def health():
     return {"status": "ok", "service": "ratings"}
 
 
+import requests
+
 @app.post("/reviews", response_model=schemas.ReviewResponse)
 def create_review(review_data: schemas.ReviewCreate, db: Session = Depends(get_db)):
+    # Перевіряємо чи користувач купив товар
+    try:
+        resp = requests.get(
+            f"http://orderservice:8002/users/{review_data.user_id}/has_bought/{review_data.product_id}",
+            timeout=3
+        )
+        if resp.status_code != 200 or not resp.json().get("has_bought"):
+            raise HTTPException(status_code=403, detail="Only buyers can leave a review for this product.")
+    except requests.RequestException:
+        raise HTTPException(status_code=503, detail="Order service unavailable for verification.")
+
     new_review = models.Review(**review_data.model_dump())
     db.add(new_review)
     db.commit()
