@@ -21,6 +21,7 @@ export interface Product {
   seller_id: number;
   seller_name?: string;
   is_premium?: boolean;
+  is_active?: boolean;
   created_at: string;
 }
 

@@ -60,6 +60,11 @@ const ProductDetailPage: React.FC = () => {
   const [reviewSuccess, setReviewSuccess] = useState(false);
 
   useEffect(() => {
+    // Reset scroll position on mount
+    window.scrollTo(0, 0);
+  }, [productId]);
+
+  useEffect(() => {
     if (product?.image_url) {
       setActiveImage(product.image_url);
     }
@@ -230,7 +235,11 @@ const ProductDetailPage: React.FC = () => {
                 </div>
 
                 <div className="flex flex-col sm:flex-row gap-4">
-                  {product.stock > 0 ? (
+                  {product.is_active === false ? (
+                    <div className="w-full py-4 text-center rounded-2xl bg-rose-50 text-rose-500 font-bold uppercase tracking-widest text-sm border border-rose-100">
+                      Товар закінчився
+                    </div>
+                  ) : product.stock > 0 ? (
                     <>
                       <Button 
                         size="lg" 

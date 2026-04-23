@@ -38,13 +38,16 @@ class ProductViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         now = timezone.now()
-        five_mins_ago = now - timedelta(minutes=5)
         one_week_ago = now - timedelta(days=7)
 
         # Deactivate products out of stock for > 1 week
         Product.objects.filter(stock=0, out_of_stock_at__lt=one_week_ago, is_active=True).update(is_active=False)
 
-        qs = Product.objects.filter(is_active=True)
+        # If it's a detail view (retrieve, update, etc), allow accessing inactive products
+        if self.action in ['retrieve', 'update', 'partial_update', 'destroy']:
+            qs = Product.objects.all()
+        else:
+            qs = Product.objects.filter(is_active=True)
 
         # Custom manual filters for fields not in filterset_fields
         min_price = self.request.query_params.get('min_price')
