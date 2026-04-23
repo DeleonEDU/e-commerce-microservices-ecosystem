@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { useNavigate, Link, Navigate } from 'react-router-dom';
 import { 
@@ -11,14 +11,80 @@ import {
   CheckCircle2,
   Package,
   Wallet,
+  Lock
 } from 'lucide-react';
 import { RootState } from '../store/store';
 import { selectCartTotal, clearCart } from '../features/cart/cartSlice';
 import Button from '../components/ui/Button';
 import AlertModal from '../components/ui/AlertModal';
 import { useCreateOrderMutation } from '../api/orderApiSlice';
+import { useCreatePaymentIntentMutation } from '../api/paymentApiSlice';
+import { loadStripe } from '@stripe/stripe-js';
+import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js';
 
-type CheckoutStep = 'shipping' | 'payment' | 'confirmation' | 'success';
+// TODO: Replace with env variable if needed
+const stripePromise = loadStripe('pk_test_51TPMQsH8SpgjaGIVWO9vvxqj1HdDi3ZgVpzUQpj0r9EAr6hAbEKjwAPoxS9Cl6xTYBl7BqC4smgyffEHuIv8PmXd00mN5NUNfe');
+
+type CheckoutStep = 'shipping' | 'payment' | 'confirmation' | 'stripe' | 'success';
+
+const StripeCheckoutForm: React.FC<{
+  clientSecret: string;
+  onSuccess: () => void;
+  onCancel: () => void;
+  totalAmount: number;
+}> = ({ clientSecret, onSuccess, onCancel, totalAmount }) => {
+  const stripe = useStripe();
+  const elements = useElements();
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!stripe || !elements) {
+      return;
+    }
+
+    setIsProcessing(true);
+    setErrorMessage(null);
+
+    const { error, paymentIntent } = await stripe.confirmPayment({
+      elements,
+      redirect: 'if_required', // Avoid automatic redirect so we can show success step
+    });
+
+    if (error) {
+      setErrorMessage(error.message || 'Виникла помилка під час оплати.');
+      setIsProcessing(false);
+    } else if (paymentIntent && paymentIntent.status === 'succeeded') {
+      onSuccess();
+    } else {
+      setErrorMessage('Статус платежу: ' + (paymentIntent?.status || 'невідомо'));
+      setIsProcessing(false);
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-6">
+      <PaymentElement />
+      {errorMessage && (
+        <div className="p-4 bg-red-50 text-red-600 rounded-2xl text-sm font-medium">
+          {errorMessage}
+        </div>
+      )}
+      <div className="flex justify-between pt-6">
+        <Button type="button" variant="ghost" size="lg" className="gap-2 text-slate-400" onClick={onCancel} disabled={isProcessing}>
+          <ArrowLeft size={18} />
+          Назад
+        </Button>
+        <Button type="submit" size="lg" className="px-12 shadow-soft gap-2" isLoading={isProcessing} disabled={!stripe || isProcessing}>
+          <Lock size={18} />
+          Оплатити ${totalAmount.toFixed(2)}
+        </Button>
+      </div>
+    </form>
+  );
+};
 
 const CheckoutPage: React.FC = () => {
   const cartItems = useSelector((state: RootState) => state.cart.items);
@@ -27,10 +93,14 @@ const CheckoutPage: React.FC = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const [createOrder, { isLoading: isPlacingOrder }] = useCreateOrderMutation();
+  const [createPaymentIntent] = useCreatePaymentIntentMutation();
 
   const [step, setStep] = useState<CheckoutStep>('shipping');
   const [placedOrderId, setPlacedOrderId] = useState<number | null>(null);
+  const [clientSecret, setClientSecret] = useState<string | null>(null);
+  
   const [errorModalOpen, setErrorModalOpen] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("Не вдалося оформити замовлення. Будь ласка, перевірте дані та спробуйте ще раз.");
   const [formData, setFormData] = useState({
     fullName: '',
     address: '',
@@ -65,12 +135,32 @@ const CheckoutPage: React.FC = () => {
       }).unwrap();
       
       setPlacedOrderId(order.id);
-      setStep('success');
-      dispatch(clearCart());
-    } catch (error) {
+
+      if (formData.paymentMethod === 'card') {
+        // Create Payment Intent
+        const paymentRes = await createPaymentIntent({
+          amount: totalAmount,
+          order_id: order.id,
+          user_id: user.id
+        }).unwrap();
+        
+        setClientSecret(paymentRes.client_secret);
+        setStep('stripe');
+      } else {
+        // Cash payment
+        setStep('success');
+        dispatch(clearCart());
+      }
+    } catch (error: any) {
+      setErrorMessage(error?.data?.detail || "Не вдалося оформити замовлення. Будь ласка, перевірте дані та спробуйте ще раз.");
       setErrorModalOpen(true);
       console.error('Order placement failed:', error);
     }
+  };
+
+  const handleStripeSuccess = () => {
+    setStep('success');
+    dispatch(clearCart());
   };
 
   if (step === 'success') {
@@ -114,8 +204,8 @@ const CheckoutPage: React.FC = () => {
               <span className="font-bold hidden sm:inline">Оплата</span>
             </div>
             <div className="w-12 h-px bg-slate-200" />
-            <div className={`flex items-center gap-2 ${step === 'confirmation' ? 'text-brand-600' : 'text-slate-400'}`}>
-              <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${step === 'confirmation' ? 'bg-brand-600 text-white' : 'bg-slate-200 text-slate-500'}`}>3</div>
+            <div className={`flex items-center gap-2 ${['confirmation', 'stripe'].includes(step) ? 'text-brand-600' : 'text-slate-400'}`}>
+              <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${['confirmation', 'stripe'].includes(step) ? 'bg-brand-600 text-white' : 'bg-slate-200 text-slate-500'}`}>3</div>
               <span className="font-bold hidden sm:inline">Підтвердження</span>
             </div>
           </div>
@@ -290,9 +380,27 @@ const CheckoutPage: React.FC = () => {
                     Назад
                   </Button>
                   <Button size="lg" className="px-12 shadow-soft" onClick={handlePlaceOrder} isLoading={isPlacingOrder}>
-                    Підтвердити та оплатити
+                    Підтвердити замовлення
                   </Button>
                 </div>
+              </div>
+            )}
+
+            {step === 'stripe' && clientSecret && (
+              <div className="bg-white rounded-[40px] p-10 border border-slate-100 shadow-soft animate-fade-in">
+                <h2 className="text-2xl font-extrabold text-slate-900 mb-8 flex items-center gap-3">
+                  <Lock className="text-brand-600" />
+                  Безпечна оплата
+                </h2>
+                
+                <Elements stripe={stripePromise} options={{ clientSecret, appearance: { theme: 'stripe' } }}>
+                  <StripeCheckoutForm 
+                    clientSecret={clientSecret} 
+                    onSuccess={handleStripeSuccess}
+                    onCancel={() => setStep('confirmation')}
+                    totalAmount={totalAmount}
+                  />
+                </Elements>
               </div>
             )}
 
@@ -340,7 +448,7 @@ const CheckoutPage: React.FC = () => {
         isOpen={errorModalOpen} 
         onClose={() => setErrorModalOpen(false)} 
         title="Помилка" 
-        message="Не вдалося оформити замовлення. Будь ласка, перевірте дані та спробуйте ще раз." 
+        message={errorMessage} 
         type="error" 
       />
     </div>
