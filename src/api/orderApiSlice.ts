@@ -5,9 +5,11 @@ export interface SellerAnalytics {
   total_revenue: number;
   total_sales: number;
   recent_sales: Array<{
+    id: number;
     product_id: number;
     quantity: number;
     price: number;
+    is_approved: boolean;
     date: string | null;
   }>;
 }
@@ -43,6 +45,14 @@ export const orderApiSlice = apiSlice.injectEndpoints({
     }),
     getSellerAnalytics: builder.query<SellerAnalytics, number>({
       query: (sellerId) => `/orders/sellers/${sellerId}/analytics`,
+      providesTags: (_result, _error, sellerId) => [{ type: 'SellerAnalytics', id: sellerId }],
+    }),
+    approveOrderItem: builder.mutation<{status: string}, {sellerId: number, itemId: number}>({
+      query: ({sellerId, itemId}) => ({
+        url: `/orders/sellers/${sellerId}/items/${itemId}/approve`,
+        method: 'POST',
+      }),
+      invalidatesTags: (_result, _error, { sellerId }) => [{ type: 'SellerAnalytics', id: sellerId }],
     }),
     checkUserBoughtProduct: builder.query<{has_bought: boolean}, {userId: number; productId: number}>({
       query: ({userId, productId}) => `/orders/users/${userId}/has_bought/${productId}`,
@@ -56,6 +66,7 @@ export const {
   useGetCartQuery,
   useCreateOrderMutation,
   useGetSellerAnalyticsQuery,
+  useApproveOrderItemMutation,
   useCheckUserBoughtProductQuery,
 } = orderApiSlice;
 

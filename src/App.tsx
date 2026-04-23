@@ -53,6 +53,20 @@ const Navbar = () => {
             </Link>
           )}
 
+          <Link to="/cart" className="text-slate-600 hover:text-brand-600 flex items-center gap-2 font-bold transition-colors group">
+            <div className="relative p-2 bg-slate-50 rounded-xl group-hover:bg-brand-50 transition-colors border border-slate-100 group-hover:border-brand-100">
+              <ShoppingCart size={20} className="group-hover:scale-110 transition-transform" />
+              {cartItemsCount > 0 && (
+                <span className="absolute -top-1.5 -right-1.5 bg-brand-600 text-white text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center shadow-soft animate-fade-in border-2 border-white">
+                  {cartItemsCount}
+                </span>
+              )}
+            </div>
+            <span className="text-sm hidden md:block">Кошик</span>
+          </Link>
+
+          <div className="w-px h-6 bg-slate-200 hidden sm:block" />
+
           {isAuthenticated ? (
             <div className="flex items-center gap-2 sm:gap-3">
               <Link to="/dashboard" className="flex items-center gap-2.5 text-slate-700 font-semibold bg-slate-50 px-3 sm:px-4 py-2 rounded-xl border border-slate-100 hover:bg-slate-100 transition-colors">
@@ -81,20 +95,6 @@ const Navbar = () => {
               </Link>
             </div>
           )}
-
-          <div className="w-px h-6 bg-slate-200 hidden sm:block" />
-
-          <Link to="/cart" className="text-slate-600 hover:text-brand-600 flex items-center gap-2 font-bold transition-colors group">
-            <div className="relative p-2 bg-slate-50 rounded-xl group-hover:bg-brand-50 transition-colors border border-slate-100 group-hover:border-brand-100">
-              <ShoppingCart size={20} className="group-hover:scale-110 transition-transform" />
-              {cartItemsCount > 0 && (
-                <span className="absolute -top-1.5 -right-1.5 bg-brand-600 text-white text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center shadow-soft animate-fade-in border-2 border-white">
-                  {cartItemsCount}
-                </span>
-              )}
-            </div>
-            <span className="text-sm hidden md:block">Кошик</span>
-          </Link>
         </div>
       </div>
     </nav>

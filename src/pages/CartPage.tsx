@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { Link, useNavigate } from 'react-router-dom';
 import { 
@@ -10,7 +10,9 @@ import {
   CreditCard, 
   ShieldCheck, 
   Truck,
-  Package
+  Package,
+  UserCircle2,
+  X
 } from 'lucide-react';
 import { RootState } from '../store/store';
 import { removeItem, updateQuantity, clearCart, selectCartTotal, selectCartItemsCount } from '../features/cart/cartSlice';
@@ -20,8 +22,18 @@ const CartPage: React.FC = () => {
   const cartItems = useSelector((state: RootState) => state.cart.items);
   const totalAmount = useSelector(selectCartTotal);
   const itemsCount = useSelector(selectCartItemsCount);
+  const { isAuthenticated } = useSelector((state: RootState) => state.auth);
   const dispatch = useDispatch();
   const navigate = useNavigate();
+  const [showAuthModal, setShowAuthModal] = useState(false);
+
+  const handleCheckoutClick = () => {
+    if (!isAuthenticated) {
+      setShowAuthModal(true);
+    } else {
+      navigate('/checkout');
+    }
+  };
 
   if (cartItems.length === 0) {
     return (
@@ -168,7 +180,7 @@ const CartPage: React.FC = () => {
                 </div>
               </div>
 
-              <Button size="lg" className="w-full shadow-soft gap-2 mb-6" onClick={() => navigate('/checkout')}>
+              <Button size="lg" className="w-full shadow-soft gap-2 mb-6" onClick={handleCheckoutClick}>
                 <CreditCard size={20} />
                 Оформити замовлення
               </Button>
@@ -187,6 +199,39 @@ const CartPage: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Auth Required Modal */}
+      {showAuthModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => setShowAuthModal(false)} />
+          <div className="relative bg-white rounded-[32px] p-8 max-w-sm w-full shadow-2xl animate-fade-in text-center">
+            <button 
+              onClick={() => setShowAuthModal(false)}
+              className="absolute top-6 right-6 p-2 text-slate-400 hover:text-slate-600 bg-slate-50 hover:bg-slate-100 rounded-full transition-colors"
+            >
+              <X size={20} />
+            </button>
+            
+            <div className="w-20 h-20 bg-brand-50 text-brand-600 rounded-full flex items-center justify-center mx-auto mb-6 shadow-inner">
+              <UserCircle2 size={40} />
+            </div>
+            
+            <h3 className="text-2xl font-extrabold text-slate-900 mb-3 tracking-tight">Потрібна авторизація</h3>
+            <p className="text-slate-500 mb-8 font-medium leading-relaxed">
+              Щоб оформити замовлення, будь ласка, увійдіть у свій акаунт або створіть новий.
+            </p>
+            
+            <div className="space-y-3">
+              <Button className="w-full" size="lg" onClick={() => navigate('/login')}>
+                Увійти
+              </Button>
+              <Button variant="outline" className="w-full" size="lg" onClick={() => navigate('/register')}>
+                Зареєструватися
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

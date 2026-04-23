@@ -21,6 +21,14 @@ try:
 except Exception:
     pass
 
+# Add is_approved column if it doesn't exist
+try:
+    with engine.connect() as conn:
+        conn.execute(sqlalchemy.text("ALTER TABLE order_items ADD COLUMN is_approved BOOLEAN DEFAULT FALSE;"))
+        conn.commit()
+except Exception:
+    pass
+
 app = FastAPI(title="Order Service", version="1.0.0")
 
 
@@ -205,14 +213,26 @@ def get_seller_analytics(seller_id: int, db: Session = Depends(get_db)):
         "total_sales": total_sales,
         "recent_sales": [
             {
+                "id": ri.id,
                 "product_id": ri.product_id,
                 "quantity": ri.quantity,
                 "price": ri.price,
+                "is_approved": ri.is_approved,
                 "date": ri.order.created_at if ri.order else None
             }
             for ri in recent_items
         ]
     }
+
+@app.post("/sellers/{seller_id}/items/{item_id}/approve")
+def approve_order_item(seller_id: int, item_id: int, db: Session = Depends(get_db)):
+    item = db.query(models.OrderItem).filter(models.OrderItem.id == item_id, models.OrderItem.seller_id == seller_id).first()
+    if not item:
+        raise HTTPException(status_code=404, detail="Order item not found or does not belong to this seller")
+    
+    item.is_approved = True
+    db.commit()
+    return {"status": "success", "is_approved": True}
 
 if __name__ == "__main__":
     import uvicorn

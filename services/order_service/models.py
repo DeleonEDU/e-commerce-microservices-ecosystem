@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Float, ForeignKey, DateTime, Enum
+from sqlalchemy import Column, Integer, String, Float, ForeignKey, DateTime, Enum, Boolean
 from sqlalchemy.orm import relationship
 from database import Base
 import datetime
@@ -30,6 +30,7 @@ class OrderItem(Base):
     seller_id = Column(Integer, nullable=True)
     quantity = Column(Integer)
     price = Column(Float)
+    is_approved = Column(Boolean, default=False)
 
     order = relationship("Order", back_populates="items")
 

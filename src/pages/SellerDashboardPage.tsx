@@ -21,12 +21,13 @@ import {
   useUpdateProductMutation, 
   useDeleteProductMutation 
 } from '../api/productApiSlice';
-import { useGetSellerAnalyticsQuery } from '../api/orderApiSlice';
+import { useGetSellerAnalyticsQuery, useApproveOrderItemMutation } from '../api/orderApiSlice';
 import { useGetSubscriptionQuery, useUpgradeSubscriptionMutation } from '../api/subscriptionApiSlice';
 import Button from '../components/ui/Button';
 import ProductFormModal from '../components/ProductFormModal';
 import { Product } from '../types/product';
 import PaymentModal from '../components/PaymentModal';
+import AlertModal, { AlertType } from '../components/ui/AlertModal';
 
 const SellerDashboardPage: React.FC = () => {
   const { user, isAuthenticated } = useSelector((state: RootState) => state.auth);
@@ -40,6 +41,23 @@ const SellerDashboardPage: React.FC = () => {
   const [selectedTier, setSelectedTier] = useState<'plus' | 'pro' | 'vip'>('plus');
   const [selectedAmount, setSelectedAmount] = useState(0);
 
+  const [alertConfig, setAlertConfig] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    type: AlertType;
+    onConfirm?: () => void;
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    type: 'info'
+  });
+
+  const showAlert = (title: string, message: string, type: AlertType = 'info', onConfirm?: () => void) => {
+    setAlertConfig({ isOpen: true, title, message, type, onConfirm });
+  };
+
   const { data: productsData, isLoading, isFetching } = useGetSellerProductsQuery(
     { page: 1, seller_id: user?.id },
     { skip: !user?.id }
@@ -48,6 +66,17 @@ const SellerDashboardPage: React.FC = () => {
   const { data: analyticsData, isLoading: isLoadingAnalytics } = useGetSellerAnalyticsQuery(user?.id ?? 0, {
     skip: !user?.id,
   });
+  const [approveOrderItem] = useApproveOrderItemMutation();
+
+  const handleApproveSale = async (itemId: number) => {
+    if (!user?.id) return;
+    try {
+      await approveOrderItem({ sellerId: user.id, itemId }).unwrap();
+      showAlert('Успіх', 'Продаж успішно підтверджено', 'success');
+    } catch (err) {
+      showAlert('Помилка', 'Не вдалося підтвердити продаж', 'error');
+    }
+  };
 
   const { data: subscription } = useGetSubscriptionQuery(user?.id ?? 0, { skip: !user?.id });
   const [upgradeSubscription, { isLoading: isUpgrading }] = useUpgradeSubscriptionMutation();
@@ -66,10 +95,10 @@ const SellerDashboardPage: React.FC = () => {
     try {
       await upgradeSubscription({ userId: user?.id ?? 0, tier: selectedTier }).unwrap();
       setIsPaymentModalOpen(false);
-      alert(`Ви успішно активували ${selectedTier.toUpperCase()} підписку!`);
+      showAlert('Успіх', `Ви успішно активували ${selectedTier.toUpperCase()} підписку!`, 'success');
     } catch (err) {
       console.error(err);
-      alert('Помилка при активації підписки.');
+      showAlert('Помилка', 'Помилка при активації підписки.', 'error');
     }
   };
 
@@ -89,14 +118,16 @@ const SellerDashboardPage: React.FC = () => {
 
   const handleCreateProduct = async (data: any) => {
     if (currentProductCount >= maxProducts) {
-      alert(`Ліміт товарів вичерпано (${maxProducts}). Оновіть підписку, щоб додавати більше товарів.`);
+      showAlert('Ліміт вичерпано', `Ліміт товарів вичерпано (${maxProducts}). Оновіть підписку, щоб додавати більше товарів.`, 'error');
       return;
     }
     try {
       await createProduct(data).unwrap();
       setIsModalOpen(false);
+      showAlert('Успіх', 'Товар успішно додано', 'success');
     } catch (err) {
       console.error('Failed to create product:', err);
+      showAlert('Помилка', 'Не вдалося додати товар', 'error');
     }
   };
 
@@ -106,19 +137,28 @@ const SellerDashboardPage: React.FC = () => {
       await updateProduct({ id: editingProduct.id, ...data }).unwrap();
       setIsModalOpen(false);
       setEditingProduct(undefined);
+      showAlert('Успіх', 'Товар успішно оновлено', 'success');
     } catch (err) {
       console.error('Failed to update product:', err);
+      showAlert('Помилка', 'Не вдалося оновити товар', 'error');
     }
   };
 
   const handleDeleteProduct = async (id: number) => {
-    if (window.confirm('Ви впевнені, що хочете видалити цей товар?')) {
-      try {
-        await deleteProduct(id).unwrap();
-      } catch (err) {
-        console.error('Failed to delete product:', err);
+    showAlert(
+      'Видалення товару', 
+      'Ви впевнені, що хочете видалити цей товар?', 
+      'error',
+      async () => {
+        try {
+          await deleteProduct(id).unwrap();
+          showAlert('Успіх', 'Товар успішно видалено', 'success');
+        } catch (err) {
+          console.error('Failed to delete product:', err);
+          showAlert('Помилка', 'Не вдалося видалити товар', 'error');
+        }
       }
-    }
+    );
   };
 
   const filteredProducts = productsData?.results?.filter(p => 
@@ -156,7 +196,7 @@ const SellerDashboardPage: React.FC = () => {
             className="shadow-soft gap-2 px-8"
             onClick={() => {
               if (currentProductCount >= maxProducts) {
-                alert(`Ліміт товарів вичерпано (${maxProducts}). Оновіть підписку, щоб додавати більше товарів.`);
+                showAlert('Ліміт вичерпано', `Ліміт товарів вичерпано (${maxProducts}). Оновіть підписку, щоб додавати більше товарів.`, 'error');
               } else {
                 setEditingProduct(undefined);
                 setIsModalOpen(true);
@@ -240,6 +280,64 @@ const SellerDashboardPage: React.FC = () => {
             </div>
             <div className="text-3xl font-extrabold text-slate-900 mb-1">{avgStoreRating ?? '—'}</div>
             <div className="text-xs font-bold text-slate-400 uppercase tracking-widest">Рейтинг магазину</div>
+          </div>
+        </div>
+
+        {/* Recent Sales Section */}
+        <div className="bg-white rounded-[40px] border border-slate-100 shadow-soft overflow-hidden mb-12">
+          <div className="p-8 border-b border-slate-50 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <h3 className="text-xl font-extrabold text-slate-900 tracking-tight">Необроблені продажі</h3>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-slate-50/50">
+                  <th className="px-8 py-5 text-[10px] font-bold text-slate-400 uppercase tracking-widest">ID Замовлення</th>
+                  <th className="px-8 py-5 text-[10px] font-bold text-slate-400 uppercase tracking-widest">ID Товару</th>
+                  <th className="px-8 py-5 text-[10px] font-bold text-slate-400 uppercase tracking-widest">К-сть</th>
+                  <th className="px-8 py-5 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Сума</th>
+                  <th className="px-8 py-5 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Статус</th>
+                  <th className="px-8 py-5 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-right">Дія</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-50">
+                {isLoadingAnalytics ? (
+                  <tr>
+                    <td colSpan={6} className="px-8 py-12 text-center text-slate-400">
+                      <Loader2 className="animate-spin mx-auto mb-2" size={24} />
+                      <p className="text-xs font-bold uppercase">Завантаження...</p>
+                    </td>
+                  </tr>
+                ) : !analyticsData?.recent_sales?.length ? (
+                  <tr>
+                    <td colSpan={6} className="px-8 py-12 text-center text-slate-400">
+                      <p className="font-medium">Немає недавніх продажів</p>
+                    </td>
+                  </tr>
+                ) : (
+                  analyticsData.recent_sales.map((sale: any) => (
+                    <tr key={sale.id} className="hover:bg-slate-50/50 transition-colors">
+                      <td className="px-8 py-5 font-bold text-slate-900">#{sale.id}</td>
+                      <td className="px-8 py-5 font-medium text-slate-600">Товар #{sale.product_id}</td>
+                      <td className="px-8 py-5 font-bold text-slate-900">{sale.quantity} шт.</td>
+                      <td className="px-8 py-5 font-extrabold text-slate-900">${(sale.price * sale.quantity).toFixed(2)}</td>
+                      <td className="px-8 py-5">
+                        <span className={`px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider ${sale.is_approved ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'}`}>
+                          {sale.is_approved ? 'Підтверджено' : 'Очікує'}
+                        </span>
+                      </td>
+                      <td className="px-8 py-5 text-right">
+                        {!sale.is_approved && (
+                          <Button size="sm" onClick={() => handleApproveSale(sale.id)}>
+                            Підтвердити
+                          </Button>
+                        )}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
           </div>
         </div>
 
@@ -390,6 +488,10 @@ const SellerDashboardPage: React.FC = () => {
         onSuccess={handlePaymentSuccess}
         tier={selectedTier}
         amount={selectedAmount}
+      />
+      <AlertModal 
+        {...alertConfig} 
+        onClose={() => setAlertConfig(prev => ({ ...prev, isOpen: false }))} 
       />
     </div>
   );

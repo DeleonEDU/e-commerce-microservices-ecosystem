@@ -1,8 +1,11 @@
 import React, { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import { useRegisterMutation } from '../../api/authApiSlice';
+import { useNavigate, Link, Navigate } from 'react-router-dom';
+import { useRegisterMutation, useLoginMutation } from '../../api/authApiSlice';
 import { UserPlus, Mail, Lock, User as UserIcon, ShieldCheck, Loader2 } from 'lucide-react';
 import { UserRole } from '../../types/auth';
+import { useDispatch, useSelector } from 'react-redux';
+import { setCredentials } from './authSlice';
+import { RootState } from '../../store/store';
 
 import Button from '../../components/ui/Button';
 
@@ -16,7 +19,14 @@ const RegisterPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
 
   const [register, { isLoading }] = useRegisterMutation();
+  const [loginMutation] = useLoginMutation();
   const navigate = useNavigate();
+  const dispatch = useDispatch();
+  const { isAuthenticated } = useSelector((state: RootState) => state.auth);
+
+  if (isAuthenticated) {
+    return <Navigate to="/" replace />;
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -24,7 +34,10 @@ const RegisterPage: React.FC = () => {
 
     try {
       await register(formData).unwrap();
-      navigate('/login');
+      // Auto-login after successful registration
+      const loginResult = await loginMutation({ email: formData.email, password: formData.password }).unwrap();
+      dispatch(setCredentials({ user: null, token: loginResult.access }));
+      navigate('/');
     } catch (err: any) {
       setError(err.data?.email?.[0] || err.data?.username?.[0] || 'Помилка при реєстрації');
     }

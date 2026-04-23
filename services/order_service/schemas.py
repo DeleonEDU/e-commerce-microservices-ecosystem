@@ -24,6 +24,7 @@ class OrderItemBase(BaseModel):
     product_id: int
     quantity: int
     price: float
+    is_approved: bool | None = False
     model_config = ConfigDict(from_attributes=True)
 
 class OrderItemCreate(BaseModel):

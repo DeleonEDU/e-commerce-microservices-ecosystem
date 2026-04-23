@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, Navigate } from 'react-router-dom';
 import { 
   CreditCard, 
   MapPin, 
@@ -15,6 +15,7 @@ import {
 import { RootState } from '../store/store';
 import { selectCartTotal, clearCart } from '../features/cart/cartSlice';
 import Button from '../components/ui/Button';
+import AlertModal from '../components/ui/AlertModal';
 import { useCreateOrderMutation } from '../api/orderApiSlice';
 
 type CheckoutStep = 'shipping' | 'payment' | 'confirmation' | 'success';
@@ -29,6 +30,7 @@ const CheckoutPage: React.FC = () => {
 
   const [step, setStep] = useState<CheckoutStep>('shipping');
   const [placedOrderId, setPlacedOrderId] = useState<number | null>(null);
+  const [errorModalOpen, setErrorModalOpen] = useState(false);
   const [formData, setFormData] = useState({
     fullName: '',
     address: '',
@@ -38,13 +40,11 @@ const CheckoutPage: React.FC = () => {
   });
 
   if (!isAuthenticated) {
-    navigate('/login');
-    return null;
+    return <Navigate to="/login" replace />;
   }
 
   if (cartItems.length === 0 && step !== 'success') {
-    navigate('/catalog');
-    return null;
+    return <Navigate to="/catalog" replace />;
   }
 
   const handlePlaceOrder = async () => {
@@ -64,7 +64,7 @@ const CheckoutPage: React.FC = () => {
       setStep('success');
       dispatch(clearCart());
     } catch (error) {
-      alert('Не вдалося оформити замовлення. Будь ласка, перевірте дані та спробуйте ще раз.');
+      setErrorModalOpen(true);
       console.error('Order placement failed:', error);
     }
   };
@@ -332,6 +332,13 @@ const CheckoutPage: React.FC = () => {
 
         </div>
       </div>
+      <AlertModal 
+        isOpen={errorModalOpen} 
+        onClose={() => setErrorModalOpen(false)} 
+        title="Помилка" 
+        message="Не вдалося оформити замовлення. Будь ласка, перевірте дані та спробуйте ще раз." 
+        type="error" 
+      />
     </div>
   );
 };
