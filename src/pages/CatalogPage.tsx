@@ -10,7 +10,7 @@ const CatalogPage: React.FC = () => {
     page: 1,
     search: '',
     category: '',
-    ordering: '-created_at',
+    ordering: '-is_premium',
     min_price: undefined,
     max_price: undefined,
     min_rating: undefined,
@@ -76,7 +76,7 @@ const CatalogPage: React.FC = () => {
       page: 1,
       search: '',
       category: '',
-      ordering: '-created_at',
+      ordering: '-is_premium',
       min_price: undefined,
       max_price: undefined,
       min_rating: undefined,
@@ -258,6 +258,7 @@ const CatalogPage: React.FC = () => {
                   onChange={(e) => handleSortChange(e.target.value)}
                   className="bg-white border border-slate-100 px-4 py-2.5 rounded-xl text-sm font-bold text-slate-600 outline-none focus:border-brand-500 transition-all cursor-pointer"
                 >
+                  <option value="-is_premium">Топ товари</option>
                   <option value="-created_at">Спочатку нові</option>
                   <option value="price">Від дешевих</option>
                   <option value="-price">Від дорогих</option>

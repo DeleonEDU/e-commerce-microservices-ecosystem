@@ -11,6 +11,14 @@ export interface SellerAnalytics {
     price: number;
     is_approved: boolean;
     date: string | null;
+    order?: {
+      id: number;
+      full_name: string;
+      address: string;
+      city: string;
+      zip_code: string;
+      status: string;
+    };
   }>;
 }
 

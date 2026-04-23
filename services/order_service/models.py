@@ -17,6 +17,12 @@ class Order(Base):
     user_id = Column(Integer, index=True)
     total_price = Column(Float)
     status = Column(Enum(OrderStatus), default=OrderStatus.PENDING)
+    
+    full_name = Column(String, nullable=True)
+    address = Column(String, nullable=True)
+    city = Column(String, nullable=True)
+    zip_code = Column(String, nullable=True)
+
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
 
     items = relationship("OrderItem", back_populates="order")

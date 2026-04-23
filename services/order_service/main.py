@@ -29,6 +29,17 @@ try:
 except Exception:
     pass
 
+# Add shipping details to orders
+try:
+    with engine.connect() as conn:
+        conn.execute(sqlalchemy.text("ALTER TABLE orders ADD COLUMN full_name VARCHAR;"))
+        conn.execute(sqlalchemy.text("ALTER TABLE orders ADD COLUMN address VARCHAR;"))
+        conn.execute(sqlalchemy.text("ALTER TABLE orders ADD COLUMN city VARCHAR;"))
+        conn.execute(sqlalchemy.text("ALTER TABLE orders ADD COLUMN zip_code VARCHAR;"))
+        conn.commit()
+except Exception:
+    pass
+
 app = FastAPI(title="Order Service", version="1.0.0")
 
 
@@ -168,7 +179,14 @@ def create_order(order_data: schemas.OrderCreate, db: Session = Depends(get_db))
                 models.OrderItem(product_id=item.product_id, seller_id=seller_id, quantity=item.quantity, price=price)
             )
 
-    new_order = models.Order(user_id=order_data.user_id, total_price=total_price)
+    new_order = models.Order(
+        user_id=order_data.user_id, 
+        total_price=total_price,
+        full_name=order_data.full_name,
+        address=order_data.address,
+        city=order_data.city,
+        zip_code=order_data.zip_code
+    )
     db.add(new_order)
     db.commit()
     db.refresh(new_order)
@@ -218,7 +236,15 @@ def get_seller_analytics(seller_id: int, db: Session = Depends(get_db)):
                 "quantity": ri.quantity,
                 "price": ri.price,
                 "is_approved": ri.is_approved,
-                "date": ri.order.created_at if ri.order else None
+                "date": ri.order.created_at if ri.order else None,
+                "order": {
+                    "id": ri.order.id,
+                    "full_name": ri.order.full_name,
+                    "address": ri.order.address,
+                    "city": ri.order.city,
+                    "zip_code": ri.order.zip_code,
+                    "status": ri.order.status.value if ri.order else "pending"
+                } if ri.order else None
             }
             for ri in recent_items
         ]

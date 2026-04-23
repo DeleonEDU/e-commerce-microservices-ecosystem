@@ -57,6 +57,10 @@ const CheckoutPage: React.FC = () => {
       
       const order = await createOrder({ 
         user_id: user.id,
+        full_name: formData.fullName,
+        address: formData.address,
+        city: formData.city,
+        zip_code: formData.zipCode,
         items: orderItems
       }).unwrap();
       

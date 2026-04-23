@@ -33,6 +33,10 @@ class OrderItemCreate(BaseModel):
 
 class OrderCreate(BaseModel):
     user_id: int
+    full_name: str | None = None
+    address: str | None = None
+    city: str | None = None
+    zip_code: str | None = None
     items: List[OrderItemCreate] | None = None
 
 class Order(BaseModel):
@@ -40,6 +44,10 @@ class Order(BaseModel):
     user_id: int
     total_price: float
     status: OrderStatus
+    full_name: str | None = None
+    address: str | None = None
+    city: str | None = None
+    zip_code: str | None = None
     created_at: datetime
     items: List[OrderItemBase]
     model_config = ConfigDict(from_attributes=True, use_enum_values=True)

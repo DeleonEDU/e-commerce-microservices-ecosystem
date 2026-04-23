@@ -14,6 +14,7 @@ import {
   Truck,
   Loader2,
   Ban,
+  Map
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { uk } from 'date-fns/locale';
@@ -61,6 +62,7 @@ const DashboardPage: React.FC = () => {
   const navigate = useNavigate();
 
   const [activeTab, setActiveTab] = React.useState<'profile' | 'orders' | 'settings'>('profile');
+  const [selectedOrderDetails, setSelectedOrderDetails] = React.useState<any>(null);
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = React.useState(false);
   const [phoneNumber, setPhoneNumber] = React.useState('');
   
@@ -371,7 +373,7 @@ const DashboardPage: React.FC = () => {
                               ? '—'
                               : format(created, 'd MMMM yyyy', { locale: uk });
                             return (
-                              <tr key={order.id} className="hover:bg-slate-50/30 transition-colors">
+                              <tr key={order.id} className="hover:bg-slate-50/30 transition-colors cursor-pointer" onClick={() => setSelectedOrderDetails(order)}>
                                 <td className="px-8 py-6 font-bold text-slate-900">#{order.id}</td>
                                 <td className="px-8 py-6 text-slate-500 font-medium capitalize">{dateLabel}</td>
                                 <td className="px-8 py-6 font-extrabold text-slate-900">
@@ -386,7 +388,10 @@ const DashboardPage: React.FC = () => {
                                   </div>
                                 </td>
                                 <td className="px-8 py-6 text-right">
-                                  <span className="text-slate-300 font-bold text-sm">—</span>
+                                  <Button variant="ghost" size="sm" className="text-slate-400" onClick={(e) => {
+                                    e.stopPropagation();
+                                    setSelectedOrderDetails(order);
+                                  }}>Деталі</Button>
                                 </td>
                               </tr>
                             );
@@ -515,6 +520,121 @@ const DashboardPage: React.FC = () => {
                 </Button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Order Details Modal */}
+      {selectedOrderDetails && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => setSelectedOrderDetails(null)} />
+          <div className="relative bg-white rounded-[32px] p-8 max-w-lg w-full shadow-2xl animate-fade-in text-left max-h-[90vh] overflow-y-auto no-scrollbar">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-2xl font-extrabold text-slate-900">Замовлення #{selectedOrderDetails.id}</h3>
+              <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-full ${statusPresentation[selectedOrderDetails.status as OrderStatus].bg} ${statusPresentation[selectedOrderDetails.status as OrderStatus].color} text-xs font-bold`}>
+                {statusPresentation[selectedOrderDetails.status as OrderStatus].label}
+              </div>
+            </div>
+
+            {/* Tracking Mock */}
+            <div className="mb-8 p-6 bg-slate-50 rounded-3xl border border-slate-100">
+              <h4 className="text-sm font-bold text-slate-900 mb-6 flex items-center gap-2">
+                <Map size={18} className="text-brand-600" />
+                Статус доставки
+              </h4>
+              
+              <div className="relative">
+                <div className="absolute top-0 bottom-0 left-3 w-px bg-slate-200"></div>
+                
+                <div className="space-y-6">
+                  <div className="relative flex items-center gap-4">
+                    <div className="w-6 h-6 rounded-full bg-emerald-500 text-white flex items-center justify-center z-10 shadow-sm">
+                      <CheckCircle2 size={12} />
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold text-slate-900">Замовлення оформлено</p>
+                      <p className="text-xs text-slate-500">{format(new Date(selectedOrderDetails.created_at), 'dd MMM yyyy, HH:mm', { locale: uk })}</p>
+                    </div>
+                  </div>
+                  
+                  <div className="relative flex items-center gap-4">
+                    <div className={`w-6 h-6 rounded-full flex items-center justify-center z-10 shadow-sm ${
+                      selectedOrderDetails.status === 'paid' || selectedOrderDetails.status === 'shipped' 
+                      ? 'bg-emerald-500 text-white' 
+                      : 'bg-white border-2 border-slate-200 text-slate-300'
+                    }`}>
+                      {(selectedOrderDetails.status === 'paid' || selectedOrderDetails.status === 'shipped') && <CheckCircle2 size={12} />}
+                    </div>
+                    <div>
+                      <p className={`text-sm font-bold ${selectedOrderDetails.status === 'paid' || selectedOrderDetails.status === 'shipped' ? 'text-slate-900' : 'text-slate-400'}`}>
+                        Комплектується продавцем
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="relative flex items-center gap-4">
+                    <div className={`w-6 h-6 rounded-full flex items-center justify-center z-10 shadow-sm ${
+                      selectedOrderDetails.status === 'shipped' 
+                      ? 'bg-emerald-500 text-white' 
+                      : 'bg-white border-2 border-slate-200 text-slate-300'
+                    }`}>
+                      {selectedOrderDetails.status === 'shipped' && <CheckCircle2 size={12} />}
+                    </div>
+                    <div>
+                      <p className={`text-sm font-bold ${selectedOrderDetails.status === 'shipped' ? 'text-slate-900' : 'text-slate-400'}`}>
+                        Передано в службу доставки
+                      </p>
+                      {selectedOrderDetails.status === 'shipped' && (
+                        <p className="text-xs text-brand-600 font-medium mt-1 flex items-center gap-1">
+                          <Truck size={12} />
+                          Орієнтовно: завтра
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-6 mb-8">
+              <div>
+                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Адреса доставки</h4>
+                <div className="p-4 bg-white border border-slate-100 rounded-2xl">
+                  <p className="font-bold text-slate-900">{selectedOrderDetails.full_name || 'Не вказано'}</p>
+                  <p className="text-sm text-slate-600 mt-1">{selectedOrderDetails.address || 'Адреса відсутня'}</p>
+                  <p className="text-sm text-slate-600">{selectedOrderDetails.city || ''}, {selectedOrderDetails.zip_code || ''}</p>
+                </div>
+              </div>
+
+              <div>
+                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Товари</h4>
+                <div className="space-y-3">
+                  {selectedOrderDetails.items?.map((item: any, idx: number) => (
+                    <div key={idx} className="flex justify-between items-center p-3 bg-slate-50 rounded-xl">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center text-slate-400 border border-slate-100">
+                          <Package size={16} />
+                        </div>
+                        <div>
+                          <p className="text-sm font-bold text-slate-900">Товар #{item.product_id}</p>
+                          <p className="text-xs text-slate-500">{item.quantity} шт. × ${item.price.toFixed(2)}</p>
+                        </div>
+                      </div>
+                      <div className="font-extrabold text-slate-900">
+                        ${(item.price * item.quantity).toFixed(2)}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              
+              <div className="flex justify-between items-center pt-4 border-t border-slate-100">
+                <span className="font-bold text-slate-500">Загальна сума</span>
+                <span className="text-2xl font-extrabold text-brand-600">${selectedOrderDetails.total_price.toFixed(2)}</span>
+              </div>
+            </div>
+
+            <Button className="w-full" onClick={() => setSelectedOrderDetails(null)}>Закрити</Button>
           </div>
         </div>
       )}

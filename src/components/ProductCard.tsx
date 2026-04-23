@@ -94,7 +94,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
             <span className="text-2xl font-extrabold text-slate-900 tracking-tight">${product.price.toFixed(2)}</span>
           </div>
           {product.stock > 0 ? (
-            <Button size="sm" className="rounded-xl px-5 shadow-soft" onClick={handleAddToCart}>Купити</Button>
+            <Button size="sm" className="rounded-xl px-5 shadow-soft" onClick={handleAddToCart}>Додати в кошик</Button>
           ) : (
             <div className="px-4 py-2 bg-slate-100 text-slate-400 text-xs font-bold uppercase tracking-widest rounded-xl">Немає в наявності</div>
           )}

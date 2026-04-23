@@ -17,6 +17,10 @@ export interface Cart {
 
 export interface OrderCreateRequest {
   user_id: number;
+  full_name?: string;
+  address?: string;
+  city?: string;
+  zip_code?: string;
   items?: Array<{
     product_id: number;
     quantity: number;
@@ -29,6 +33,7 @@ export interface OrderItem {
   product_id: number;
   quantity: number;
   price: number;
+  is_approved?: boolean;
 }
 
 export interface Order {
@@ -36,6 +41,10 @@ export interface Order {
   user_id: number;
   total_price: number;
   status: OrderStatus;
+  full_name?: string;
+  address?: string;
+  city?: string;
+  zip_code?: string;
   created_at: string;
   items: OrderItem[];
 }
