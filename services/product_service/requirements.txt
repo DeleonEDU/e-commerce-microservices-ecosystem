@@ -7,3 +7,4 @@ django-redis
 redis
 django-cors-headers
 requests
+djangorestframework-simplejwt

@@ -27,6 +27,15 @@ class ProductViewSet(viewsets.ModelViewSet):
     search_fields = ['name', 'description']
     ordering_fields = ['price', 'created_at', 'is_premium']
     
+    def filter_queryset(self, queryset):
+        queryset = super().filter_queryset(queryset)
+        # Always order by out_of_stock_penalty first, regardless of other sort options
+        if hasattr(queryset, 'query') and queryset.query.order_by:
+            # Prepend out_of_stock_penalty to the existing order_by
+            current_ordering = list(queryset.query.order_by)
+            queryset = queryset.order_by('out_of_stock_penalty', *current_ordering)
+        return queryset
+
     def get_queryset(self):
         now = timezone.now()
         five_mins_ago = now - timedelta(minutes=5)
@@ -57,29 +66,22 @@ class ProductViewSet(viewsets.ModelViewSet):
         if in_stock and in_stock.lower() == 'true':
             qs = qs.filter(stock__gt=0)
 
-        # Annotate for out_of_stock penalty (if stock == 0 AND out_of_stock_at < 5 mins ago -> penalty)
+        # Annotate for out_of_stock penalty (if stock == 0 -> penalty)
         qs = qs.annotate(
             out_of_stock_penalty=Case(
-                When(Q(stock=0) & Q(out_of_stock_at__lt=five_mins_ago), then=Value(1)),
+                When(stock=0, then=Value(1)),
                 default=Value(0),
                 output_field=IntegerField(),
             )
         )
-
+        
         return qs.order_by('out_of_stock_penalty', '-is_premium', '-created_at')
 
     def perform_create(self, serializer):
-        seller_id = 1
-        auth_header = self.request.META.get('HTTP_AUTHORIZATION')
-        if auth_header and auth_header.startswith('Bearer '):
-            token = auth_header.split(' ')[1]
-            try:
-                payload_part = token.split('.')[1]
-                payload_part += '=' * (-len(payload_part) % 4)
-                payload = json.loads(base64.urlsafe_b64decode(payload_part).decode('utf-8'))
-                seller_id = payload.get('user_id', 1)
-            except Exception:
-                pass
+        if not self.request.user.is_authenticated:
+            raise ValidationError({"detail": "Authentication credentials were not provided."})
+            
+        seller_id = getattr(self.request.user, 'id', 1)
 
         # Check limits by querying payment_service for subscription
         from django.core.cache import cache
@@ -99,7 +101,7 @@ class ProductViewSet(viewsets.ModelViewSet):
             # Cache the tier for 5 minutes
             cache.set(cache_key, sub_tier, 300)
 
-        # Define limits
+    # Define limits
         limits = {
             "free": 10,
             "plus": 100,
@@ -142,6 +144,23 @@ class ProductViewSet(viewsets.ModelViewSet):
             out_of_stock_at = serializer.instance.out_of_stock_at
 
         serializer.save(out_of_stock_at=out_of_stock_at, stock=stock)
+
+@api_view(['POST'])
+@permission_classes([permissions.AllowAny])
+def decrement_stock(request, pk):
+    quantity = request.data.get('quantity', 1)
+    try:
+        product = Product.objects.get(pk=pk)
+        if product.stock < quantity:
+            return Response({'detail': f'Not enough stock for product {pk}'}, status=400)
+        
+        product.stock -= quantity
+        if product.stock == 0:
+            product.out_of_stock_at = timezone.now()
+        product.save(update_fields=['stock', 'out_of_stock_at'])
+        return Response({'success': True, 'new_stock': product.stock})
+    except Product.DoesNotExist:
+        return Response({'detail': 'Product not found'}, status=404)
 
 @api_view(['POST'])
 @permission_classes([permissions.AllowAny])
