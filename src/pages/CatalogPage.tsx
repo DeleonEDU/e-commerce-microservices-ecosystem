@@ -271,6 +271,17 @@ const CatalogPage: React.FC = () => {
                 <Loader2 className="animate-spin text-brand-600 mb-4" size={48} />
                 <p className="text-slate-500 font-bold tracking-widest uppercase text-xs">Оновлення товарів...</p>
               </div>
+            ) : error ? (
+              <div className="bg-white rounded-[40px] border border-slate-100 p-24 text-center shadow-soft">
+                <div className="w-24 h-24 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-8">
+                  <X size={48} className="text-red-400" />
+                </div>
+                <h2 className="text-2xl font-extrabold mb-3">Помилка завантаження</h2>
+                <p className="text-slate-500 mb-10 max-w-sm mx-auto">Не вдалося завантажити товари. Будь ласка, спробуйте пізніше.</p>
+                <Button onClick={resetFilters}>
+                  Спробувати знову
+                </Button>
+              </div>
             ) : productsData?.results?.length === 0 ? (
               <div className="bg-white rounded-[40px] border border-slate-100 p-24 text-center shadow-soft">
                 <div className="w-24 h-24 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-8">

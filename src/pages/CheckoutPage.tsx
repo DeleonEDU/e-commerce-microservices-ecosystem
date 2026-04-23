@@ -63,8 +63,9 @@ const CheckoutPage: React.FC = () => {
       setPlacedOrderId(order.id);
       setStep('success');
       dispatch(clearCart());
-    } catch {
-      // keep user on page; UI-level error handling can be added later
+    } catch (error) {
+      alert('Не вдалося оформити замовлення. Будь ласка, перевірте дані та спробуйте ще раз.');
+      console.error('Order placement failed:', error);
     }
   };
 

@@ -6,6 +6,7 @@ import {
   useGetProductsQuery,
 } from '../api/productApiSlice';
 import { useCreateReviewMutation, useGetReviewsByProductQuery } from '../api/ratingApiSlice';
+import { useCheckUserBoughtProductQuery } from '../api/orderApiSlice';
 import { useSelector } from 'react-redux';
 import { RootState } from '../store/store';
 import Button from '../components/ui/Button';
@@ -39,6 +40,12 @@ const ProductDetailPage: React.FC = () => {
   const { data: reviews, isLoading: isLoadingReviews } = useGetReviewsByProductQuery(productId);
   const [createReview, { isLoading: isCreatingReview }] = useCreateReviewMutation();
   const { isAuthenticated, user } = useSelector((state: RootState) => state.auth);
+  
+  const { data: purchaseCheck } = useCheckUserBoughtProductQuery(
+    { userId: user?.id || 0, productId },
+    { skip: !isAuthenticated || !user }
+  );
+  const hasBought = purchaseCheck?.has_bought || false;
   
   // Fetch similar products in the same category
   const { data: similarProductsData } = useGetProductsQuery(
@@ -378,7 +385,13 @@ const ProductDetailPage: React.FC = () => {
                             <User size={24} />
                           </div>
                           <div>
-                            <h4 className="font-extrabold text-slate-900">User #{review.user_id}</h4>
+                            <div className="flex items-center gap-2 mb-1">
+                              <h4 className="font-extrabold text-slate-900">Користувач #{review.user_id}</h4>
+                              <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 text-[10px] font-bold flex items-center gap-1">
+                                <CheckCircle2 size={10} />
+                                Покупець
+                              </span>
+                            </div>
                             <p className="text-xs text-slate-400 font-bold uppercase tracking-widest">
                               {format(new Date(review.created_at), 'dd MMMM yyyy', { locale: uk })}
                             </p>
@@ -410,57 +423,68 @@ const ProductDetailPage: React.FC = () => {
                 <h4 className="text-xl font-extrabold text-slate-900 mb-6 tracking-tight">Залишити відгук</h4>
                 
                 {isAuthenticated ? (
-                  <form onSubmit={handleReviewSubmit} className="space-y-6">
-                    <div>
-                      <label className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3 block">Ваша оцінка</label>
-                      <div className="flex gap-2">
-                        {[1, 2, 3, 4, 5].map((s) => (
-                          <button
-                            key={s}
-                            type="button"
-                            onClick={() => setReviewRating(s)}
-                            className={`p-2 rounded-xl transition-all ${reviewRating >= s ? 'text-amber-400 bg-amber-50' : 'text-slate-200 hover:text-amber-200'}`}
-                          >
-                            <Star size={24} fill={reviewRating >= s ? "currentColor" : "none"} />
-                          </button>
-                        ))}
+                  hasBought ? (
+                    <form onSubmit={handleReviewSubmit} className="space-y-6">
+                      <div>
+                        <label className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3 block">Ваша оцінка</label>
+                        <div className="flex gap-2">
+                          {[1, 2, 3, 4, 5].map((s) => (
+                            <button
+                              key={s}
+                              type="button"
+                              onClick={() => setReviewRating(s)}
+                              className={`p-2 rounded-xl transition-all ${reviewRating >= s ? 'text-amber-400 bg-amber-50' : 'text-slate-200 hover:text-amber-200'}`}
+                            >
+                              <Star size={24} fill={reviewRating >= s ? "currentColor" : "none"} />
+                            </button>
+                          ))}
+                        </div>
                       </div>
+
+                      <div className="space-y-2">
+                        <label className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">Ваш коментар</label>
+                        <textarea
+                          rows={4}
+                          placeholder="Поділіться враженнями від товару..."
+                          className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:bg-white focus:ring-4 focus:ring-brand-500/10 focus:border-brand-500 outline-none transition-all font-medium resize-none"
+                          value={reviewComment}
+                          onChange={(e) => setReviewComment(e.target.value)}
+                        />
+                      </div>
+
+                      {reviewError && (
+                        <div className="p-4 rounded-xl bg-rose-50 text-rose-600 text-sm font-bold border border-rose-100 animate-shake flex items-center gap-2">
+                          <AlertCircle size={16} />
+                          {reviewError}
+                        </div>
+                      )}
+
+                      {reviewSuccess && (
+                        <div className="p-4 rounded-xl bg-emerald-50 text-emerald-600 text-sm font-bold border border-emerald-100 flex items-center gap-2">
+                          <CheckCircle2 size={16} />
+                          Відгук додано!
+                        </div>
+                      )}
+
+                      <Button 
+                        type="submit" 
+                        className="w-full shadow-soft gap-2" 
+                        isLoading={isCreatingReview}
+                        disabled={reviewSuccess}
+                      >
+                        <Send size={18} />
+                        Надіслати відгук
+                      </Button>
+                    </form>
+                  ) : (
+                    <div className="text-center py-6">
+                      <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <Package size={24} className="text-slate-300" />
+                      </div>
+                      <p className="text-slate-500 text-sm font-medium mb-2">Тільки покупці можуть залишати відгуки.</p>
+                      <p className="text-slate-400 text-xs">Придбайте цей товар, щоб оцінити його.</p>
                     </div>
-
-                    <div className="space-y-2">
-                      <label className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">Ваш коментар</label>
-                      <textarea
-                        rows={4}
-                        placeholder="Поділіться враженнями від товару..."
-                        className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:bg-white focus:ring-4 focus:ring-brand-500/10 focus:border-brand-500 outline-none transition-all font-medium resize-none"
-                        value={reviewComment}
-                        onChange={(e) => setReviewComment(e.target.value)}
-                      />
-                    </div>
-
-                    {reviewError && (
-                      <div className="p-4 rounded-xl bg-rose-50 text-rose-600 text-sm font-bold border border-rose-100 animate-shake">
-                        {reviewError}
-                      </div>
-                    )}
-
-                    {reviewSuccess && (
-                      <div className="p-4 rounded-xl bg-emerald-50 text-emerald-600 text-sm font-bold border border-emerald-100 flex items-center gap-2">
-                        <CheckCircle2 size={18} />
-                        Дякуємо за ваш відгук!
-                      </div>
-                    )}
-
-                    <Button 
-                      type="submit" 
-                      className="w-full shadow-soft gap-2" 
-                      isLoading={isCreatingReview}
-                      disabled={reviewSuccess}
-                    >
-                      <Send size={18} />
-                      Надіслати відгук
-                    </Button>
-                  </form>
+                  )
                 ) : (
                   <div className="text-center py-8">
                     <p className="text-slate-500 text-sm mb-6 font-medium">Тільки авторизовані користувачі можуть залишати відгуки.</p>

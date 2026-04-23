@@ -20,7 +20,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
   };
 
   return (
-    <div className={`group rounded-3xl border overflow-hidden hover:shadow-card transition-all duration-500 hover:-translate-y-2 ${product.is_premium ? 'bg-amber-50/10 border-amber-200' : 'bg-white border-slate-100'}`}>
+    <div className={`group rounded-3xl border overflow-hidden transition-all duration-500 ${product.stock === 0 ? 'opacity-60 grayscale-[50%]' : 'hover:shadow-card hover:-translate-y-2'} ${product.is_premium ? 'bg-amber-50/10 border-amber-200' : 'bg-white border-slate-100'}`}>
       {/* Image Section */}
       <Link to={`/product/${product.id}`} className="block aspect-[4/5] bg-slate-50 relative overflow-hidden">
         {product.image_url ? (

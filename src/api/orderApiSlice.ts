@@ -44,6 +44,9 @@ export const orderApiSlice = apiSlice.injectEndpoints({
     getSellerAnalytics: builder.query<SellerAnalytics, number>({
       query: (sellerId) => `/orders/sellers/${sellerId}/analytics`,
     }),
+    checkUserBoughtProduct: builder.query<{has_bought: boolean}, {userId: number; productId: number}>({
+      query: ({userId, productId}) => `/orders/users/${userId}/has_bought/${productId}`,
+    }),
   }),
 });
 
@@ -53,5 +56,6 @@ export const {
   useGetCartQuery,
   useCreateOrderMutation,
   useGetSellerAnalyticsQuery,
+  useCheckUserBoughtProductQuery,
 } = orderApiSlice;
 

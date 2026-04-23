@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Loader2, Upload, Package, DollarSign, Tag, Info, Layers } from 'lucide-react';
+import { X, Loader2, Upload, Package, DollarSign, Tag, Info, Layers, Plus, Trash2 } from 'lucide-react';
 import { Category, Product, CreateProductRequest, UpdateProductRequest } from '../types/product';
 import { useGetCategoriesQuery } from '../api/productApiSlice';
 import Button from './ui/Button';
@@ -20,6 +20,7 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
   isLoading 
 }) => {
   const { data: categories } = useGetCategoriesQuery();
+  const [specs, setSpecs] = useState<Array<{key: string, value: string}>>([]);
   const [formData, setFormData] = useState({
     name: '',
     brand: '',
@@ -41,8 +42,17 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
         category_id: product.category != null ? String(product.category) : '',
         image_url: product.image_url || '',
         stock: product.stock.toString(),
-        specifications: product.specifications ? JSON.stringify(product.specifications, null, 2) : '{}',
       });
+      
+      if (product.specifications && typeof product.specifications === 'object') {
+        const specArr = Object.entries(product.specifications).map(([key, value]) => ({
+          key, 
+          value: String(value)
+        }));
+        setSpecs(specArr.length > 0 ? specArr : [{key: '', value: ''}]);
+      } else {
+        setSpecs([{key: '', value: ''}]);
+      }
     } else {
       setFormData({
         name: '',
@@ -52,10 +62,46 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
         category_id: '',
         image_url: '',
         stock: '',
-        specifications: '{\n  "Колір": "",\n  "Розмір": ""\n}',
       });
+      setSpecs([{key: '', value: ''}]);
     }
   }, [product, isOpen]);
+
+  const handleCategoryChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const newCatId = e.target.value;
+    setFormData({...formData, category_id: newCatId});
+    
+    // Apply presets if creating new product and specs are empty
+    if (!product && specs.every(s => !s.key && !s.value)) {
+      const cat = categories?.find(c => c.id.toString() === newCatId);
+      if (cat) {
+        const name = cat.name.toLowerCase();
+        let presetKeys: string[] = [];
+        if (name.includes('електроніка')) presetKeys = ['Модель', 'Колір', 'Пам\'ять', 'Процесор'];
+        else if (name.includes('одяг') || name.includes('взуття')) presetKeys = ['Розмір', 'Колір', 'Матеріал', 'Сезон'];
+        else if (name.includes('дім') || name.includes('меблі')) presetKeys = ['Матеріал', 'Габарити (ВxШxГ)', 'Колір'];
+        else if (name.includes('спорт')) presetKeys = ['Тип', 'Вага', 'Матеріал'];
+        
+        if (presetKeys.length > 0) {
+          setSpecs(presetKeys.map(key => ({key, value: ''})));
+        }
+      }
+    }
+  };
+
+  const addSpec = () => setSpecs([...specs, {key: '', value: ''}]);
+  
+  const removeSpec = (index: number) => {
+    const newSpecs = [...specs];
+    newSpecs.splice(index, 1);
+    setSpecs(newSpecs.length > 0 ? newSpecs : [{key: '', value: ''}]);
+  };
+  
+  const updateSpec = (index: number, field: 'key' | 'value', val: string) => {
+    const newSpecs = [...specs];
+    newSpecs[index][field] = val;
+    setSpecs(newSpecs);
+  };
 
   useEffect(() => {
     if (!isOpen) return;
@@ -70,22 +116,20 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    let specs = {};
-    try {
-      // Allow empty string to pass validation
-      if (formData.specifications.trim() !== '') {
-        specs = JSON.parse(formData.specifications);
+    let specsObj: Record<string, string> = {};
+    
+    specs.forEach(spec => {
+      if (spec.key.trim() && spec.value.trim()) {
+        specsObj[spec.key.trim()] = spec.value.trim();
       }
-    } catch (e) {
-      alert('Некоректний JSON у специфікаціях. Будь ласка, перевірте синтаксис (повинні бути подвійні лапки).');
-      return;
-    }
+    });
+
     const data = {
       ...formData,
       price: parseFloat(formData.price),
       stock: parseInt(formData.stock),
       category_id: parseInt(formData.category_id),
-      specifications: specs,
+      specifications: specsObj,
     };
     await onSubmit(data);
   };
@@ -144,7 +188,7 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
                 required
                 className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:bg-white focus:ring-4 focus:ring-brand-500/10 focus:border-brand-500 outline-none transition-all font-bold text-slate-600 appearance-none"
                 value={formData.category_id}
-                onChange={(e) => setFormData({...formData, category_id: e.target.value})}
+                onChange={handleCategoryChange}
               >
                 <option value="">Оберіть категорію</option>
                 {categories?.map(cat => (
@@ -215,20 +259,49 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
             </div>
 
             {/* Specifications */}
-            <div className="md:col-span-2 space-y-2">
+            <div className="md:col-span-2 space-y-4">
               <label className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1 flex items-center gap-2">
-                <Layers size={14} /> Характеристики (JSON формат)
+                <Layers size={14} /> Характеристики
               </label>
-              <textarea 
-                rows={4}
-                placeholder={'{\n  "Колір": "Чорний",\n  "Матеріал": "Бавовна"\n}'}
-                className="w-full px-6 py-4 bg-slate-900 text-emerald-400 border border-slate-800 rounded-2xl focus:ring-4 focus:ring-brand-500/20 outline-none transition-all font-mono text-sm resize-none shadow-inner"
-                value={formData.specifications}
-                onChange={(e) => setFormData({...formData, specifications: e.target.value})}
-              />
-              <p className="text-xs text-slate-400 font-medium px-2">
-                Введіть характеристики у форматі JSON. Обов'язково використовуйте подвійні лапки для ключів та значень.
-              </p>
+              
+              <div className="space-y-3">
+                {specs.map((spec, idx) => (
+                  <div key={idx} className="flex items-center gap-3">
+                    <input 
+                      type="text" 
+                      placeholder="Назва (напр. Колір)"
+                      className="flex-1 px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl focus:bg-white focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 outline-none transition-all text-sm font-medium"
+                      value={spec.key}
+                      onChange={(e) => updateSpec(idx, 'key', e.target.value)}
+                    />
+                    <input 
+                      type="text" 
+                      placeholder="Значення (напр. Чорний)"
+                      className="flex-1 px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl focus:bg-white focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 outline-none transition-all text-sm font-medium"
+                      value={spec.value}
+                      onChange={(e) => updateSpec(idx, 'value', e.target.value)}
+                    />
+                    <button 
+                      type="button"
+                      onClick={() => removeSpec(idx)}
+                      className="p-3 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-all"
+                    >
+                      <Trash2 size={18} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+              
+              <Button 
+                type="button" 
+                variant="outline" 
+                size="sm" 
+                className="w-full gap-2 border-dashed border-2 hover:border-brand-300 hover:bg-brand-50/50"
+                onClick={addSpec}
+              >
+                <Plus size={16} />
+                Додати характеристику
+              </Button>
             </div>
           </div>
 

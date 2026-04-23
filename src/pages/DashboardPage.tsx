@@ -18,10 +18,11 @@ import {
 import { format } from 'date-fns';
 import { uk } from 'date-fns/locale';
 import { RootState } from '../store/store';
-import { logout } from '../features/auth/authSlice';
+import { logout, setUser } from '../features/auth/authSlice';
 import Button from '../components/ui/Button';
 import { useGetUserOrdersQuery } from '../api/orderApiSlice';
 import { useGetSubscriptionQuery } from '../api/subscriptionApiSlice';
+import { useUpdateProfileMutation } from '../api/authApiSlice';
 import type { OrderStatus } from '../types/order';
 
 const statusPresentation: Record<
@@ -58,6 +59,56 @@ const DashboardPage: React.FC = () => {
   const { user, isAuthenticated } = useSelector((state: RootState) => state.auth);
   const dispatch = useDispatch();
   const navigate = useNavigate();
+
+  const [isUpgradeModalOpen, setIsUpgradeModalOpen] = React.useState(false);
+  const [isEditProfileOpen, setIsEditProfileOpen] = React.useState(false);
+  const [phoneNumber, setPhoneNumber] = React.useState('');
+  const [editUsername, setEditUsername] = React.useState(user?.username || '');
+  const [editPhone, setEditPhone] = React.useState(user?.phone_number || '');
+  const [phoneError, setPhoneError] = React.useState('');
+  const [updateProfile, { isLoading: isUpdating }] = useUpdateProfileMutation();
+
+  // Reset edit form when modal opens
+  React.useEffect(() => {
+    if (isEditProfileOpen) {
+      setEditUsername(user?.username || '');
+      setEditPhone(user?.phone_number || '');
+    }
+  }, [isEditProfileOpen, user]);
+
+  const handleEditProfileSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const updatedUser = await updateProfile({ 
+        username: editUsername,
+        phone_number: editPhone || undefined
+      }).unwrap();
+      dispatch(setUser(updatedUser));
+      setIsEditProfileOpen(false);
+    } catch (err) {
+      alert('Не вдалося оновити профіль. Спробуйте пізніше.');
+    }
+  };
+
+  const handleUpgradeSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPhoneError('');
+    
+    // Basic phone validation (digits and optional plus)
+    const phoneRegex = /^\+?[\d\s-]{10,}$/;
+    if (!phoneRegex.test(phoneNumber)) {
+      setPhoneError('Введіть коректний номер телефону');
+      return;
+    }
+    
+    try {
+      const updatedUser = await updateProfile({ role: 'seller', phone_number: phoneNumber }).unwrap();
+      dispatch(setUser(updatedUser));
+      setIsUpgradeModalOpen(false);
+    } catch (err) {
+      setPhoneError('Не вдалося оновити профіль. Спробуйте пізніше.');
+    }
+  };
 
   const userId = user?.id ?? 0;
   const { data: orders = [], isLoading: ordersLoading, isError: ordersError } = useGetUserOrdersQuery(userId, {
@@ -157,7 +208,7 @@ const DashboardPage: React.FC = () => {
                   <Button 
                     variant="secondary" 
                     className="w-full bg-white text-brand-600 hover:bg-brand-50 border-none"
-                    onClick={() => alert("Тут буде перехід на сторінку реєстрації продавця")}
+                    onClick={() => setIsUpgradeModalOpen(true)}
                   >
                     Дізнатися більше
                   </Button>
@@ -204,7 +255,7 @@ const DashboardPage: React.FC = () => {
             <div className="bg-white rounded-[40px] p-10 border border-slate-100 shadow-soft">
               <div className="flex items-center justify-between mb-10">
                 <h3 className="text-2xl font-extrabold text-slate-900 tracking-tight">Особиста інформація</h3>
-                <Button variant="outline" size="sm" className="rounded-xl">
+                <Button variant="outline" size="sm" className="rounded-xl" onClick={() => setIsEditProfileOpen(true)}>
                   Редагувати
                 </Button>
               </div>
@@ -220,11 +271,13 @@ const DashboardPage: React.FC = () => {
                 </div>
                 <div className="space-y-1">
                   <label className="text-xs font-bold text-slate-300 uppercase tracking-widest">Телефон</label>
-                  <div className="text-lg font-bold text-slate-900">—</div>
+                  <div className="text-lg font-bold text-slate-900">{user?.phone_number || '—'}</div>
                 </div>
                 <div className="space-y-1">
                   <label className="text-xs font-bold text-slate-300 uppercase tracking-widest">Дата реєстрації</label>
-                  <div className="text-lg font-bold text-slate-900">—</div>
+                  <div className="text-lg font-bold text-slate-900">
+                    {user?.date_joined ? format(new Date(user.date_joined), 'dd MMMM yyyy', { locale: uk }) : '—'}
+                  </div>
                 </div>
               </div>
             </div>
@@ -305,6 +358,79 @@ const DashboardPage: React.FC = () => {
           </div>
         </div>
       </div>
+      
+      {/* Edit Profile Modal */}
+      {isEditProfileOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => setIsEditProfileOpen(false)} />
+          <div className="relative bg-white rounded-[32px] p-8 max-w-md w-full shadow-2xl animate-fade-in">
+            <h3 className="text-2xl font-extrabold text-slate-900 mb-6">Редагувати профіль</h3>
+            
+            <form onSubmit={handleEditProfileSubmit} className="space-y-4">
+              <div>
+                <label className="text-xs font-bold text-slate-400 uppercase tracking-widest block mb-2">Повне ім'я</label>
+                <input
+                  type="text"
+                  value={editUsername}
+                  onChange={(e) => setEditUsername(e.target.value)}
+                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-brand-500 transition-colors"
+                  required
+                />
+              </div>
+              <div>
+                <label className="text-xs font-bold text-slate-400 uppercase tracking-widest block mb-2">Номер телефону</label>
+                <input
+                  type="tel"
+                  placeholder="+380 99 123 45 67"
+                  value={editPhone}
+                  onChange={(e) => setEditPhone(e.target.value)}
+                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-brand-500 transition-colors"
+                />
+              </div>
+              
+              <div className="flex gap-3 pt-4">
+                <Button type="button" variant="ghost" className="flex-1" onClick={() => setIsEditProfileOpen(false)}>Скасувати</Button>
+                <Button type="submit" className="flex-1" disabled={isUpdating}>
+                  {isUpdating ? 'Збереження...' : 'Зберегти'}
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Upgrade to Seller Modal */}
+      {isUpgradeModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => setIsUpgradeModalOpen(false)} />
+          <div className="relative bg-white rounded-[32px] p-8 max-w-md w-full shadow-2xl animate-fade-in">
+            <h3 className="text-2xl font-extrabold text-slate-900 mb-2">Стати продавцем</h3>
+            <p className="text-slate-500 mb-6">Для реєстрації як продавця, будь ласка, підтвердіть свій номер телефону.</p>
+            
+            <form onSubmit={handleUpgradeSubmit} className="space-y-4">
+              <div>
+                <label className="text-xs font-bold text-slate-400 uppercase tracking-widest block mb-2">Номер телефону</label>
+                <input
+                  type="tel"
+                  placeholder="+380 99 123 45 67"
+                  value={phoneNumber}
+                  onChange={(e) => setPhoneNumber(e.target.value)}
+                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-brand-500 transition-colors"
+                  required
+                />
+                {phoneError && <p className="text-rose-500 text-sm font-bold mt-2">{phoneError}</p>}
+              </div>
+              
+              <div className="flex gap-3 pt-4">
+                <Button type="button" variant="ghost" className="flex-1" onClick={() => setIsUpgradeModalOpen(false)}>Скасувати</Button>
+                <Button type="submit" className="flex-1" disabled={isUpdating}>
+                  {isUpdating ? 'Оновлення...' : 'Підтвердити'}
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -17,11 +17,19 @@ export const authApiSlice = apiSlice.injectEndpoints({
         body: userData,
       }),
     }),
-    // Додатковий ендпоінт для отримання даних профілю, якщо JWT не містить їх
     getProfile: builder.query<User, void>({
-      query: () => '/auth/users/profile/', // Припустимо, ми додамо цей ендпоінт пізніше
+      query: () => '/auth/users/profile/',
+      providesTags: ['User'],
+    }),
+    updateProfile: builder.mutation<User, Partial<User>>({
+      query: (userData) => ({
+        url: '/auth/users/profile/',
+        method: 'PATCH',
+        body: userData,
+      }),
+      invalidatesTags: ['User'],
     }),
   }),
 });
 
-export const { useLoginMutation, useRegisterMutation, useGetProfileQuery } = authApiSlice;
+export const { useLoginMutation, useRegisterMutation, useGetProfileQuery, useUpdateProfileMutation } = authApiSlice;
