@@ -21,10 +21,12 @@ class Cart(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 class OrderItemBase(BaseModel):
+    id: int | None = None
     product_id: int
     quantity: int
     price: float
     is_approved: bool | None = False
+    is_delivered: bool | None = False
     model_config = ConfigDict(from_attributes=True)
 
 class OrderItemCreate(BaseModel):

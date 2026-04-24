@@ -25,11 +25,25 @@ def process_payment_message(ch, method, properties, body):
     
     db = database.SessionLocal()
     try:
-        order = db.query(models.Order).filter(models.Order.id == order_id).first()
+        from sqlalchemy.orm import joinedload
+        order = db.query(models.Order).options(joinedload(models.Order.items)).filter(models.Order.id == order_id).first()
         if order and status == "paid":
             order.status = models.OrderStatus.PAID
+            
+            # Check if all items are already approved or delivered
+            all_delivered = all(i.is_delivered for i in order.items)
+            all_approved = all(i.is_approved for i in order.items)
+            
+            if all_delivered and len(order.items) > 0:
+                order.status = models.OrderStatus.DELIVERED
+                print(f"Order {order_id} status updated to DELIVERED (all items were already delivered)")
+            elif all_approved and len(order.items) > 0:
+                order.status = models.OrderStatus.SHIPPED
+                print(f"Order {order_id} status updated to SHIPPED (all items were already approved)")
+            else:
+                print(f"Order {order_id} status updated to PAID")
+                
             db.commit()
-            print(f"Order {order_id} status updated to PAID")
     except Exception as e:
         print(f"Error updating order {order_id}: {e}")
     finally:

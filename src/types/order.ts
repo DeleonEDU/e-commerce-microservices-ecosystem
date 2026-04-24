@@ -27,13 +27,15 @@ export interface OrderCreateRequest {
   }>;
 }
 
-export type OrderStatus = 'pending' | 'paid' | 'shipped' | 'cancelled';
+export type OrderStatus = 'pending' | 'paid' | 'shipped' | 'delivered' | 'cancelled';
 
 export interface OrderItem {
+  id?: number;
   product_id: number;
   quantity: number;
   price: number;
   is_approved?: boolean;
+  is_delivered?: boolean;
 }
 
 export interface Order {

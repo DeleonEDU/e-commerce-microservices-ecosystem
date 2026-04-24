@@ -29,6 +29,22 @@ try:
 except Exception:
     pass
 
+# Add is_delivered column if it doesn't exist
+try:
+    with engine.connect() as conn:
+        conn.execute(sqlalchemy.text("ALTER TABLE order_items ADD COLUMN is_delivered BOOLEAN DEFAULT FALSE;"))
+        conn.commit()
+except Exception:
+    pass
+
+# Add 'delivered' to orderstatus enum if it doesn't exist
+try:
+    with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
+        conn.execute(sqlalchemy.text("ALTER TYPE orderstatus ADD VALUE IF NOT EXISTS 'delivered';"))
+except Exception as e:
+    print(f"Error adding 'delivered' to enum: {e}")
+    pass
+
 # Add shipping details to orders
 try:
     with engine.connect() as conn:
@@ -94,7 +110,8 @@ def list_user_orders(user_id: int, db: Session = Depends(get_db)):
 def check_user_bought_product(user_id: int, product_id: int, db: Session = Depends(get_db)):
     has_bought = db.query(models.OrderItem).join(models.Order).filter(
         models.Order.user_id == user_id,
-        models.OrderItem.product_id == product_id
+        models.OrderItem.product_id == product_id,
+        models.Order.status.in_([models.OrderStatus.PAID, models.OrderStatus.SHIPPED])
     ).first() is not None
     return {"has_bought": has_bought}
 
@@ -210,25 +227,55 @@ def create_order(order_data: schemas.OrderCreate, db: Session = Depends(get_db))
     return loaded
 
 
+from collections import defaultdict
+from datetime import datetime, timedelta
+
 @app.get("/sellers/{seller_id}/analytics")
 def get_seller_analytics(seller_id: int, db: Session = Depends(get_db)):
-    items = db.query(models.OrderItem).filter(models.OrderItem.seller_id == seller_id).all()
-    total_revenue = sum(item.price * item.quantity for item in items)
-    total_sales = sum(item.quantity for item in items)
-    
-    # recent items sold
-    recent_items = (
+    items = (
         db.query(models.OrderItem)
         .options(joinedload(models.OrderItem.order))
         .filter(models.OrderItem.seller_id == seller_id)
-        .order_by(models.OrderItem.id.desc())
-        .limit(10)
         .all()
     )
+    
+    total_revenue = sum(item.price * item.quantity for item in items)
+    total_sales = sum(item.quantity for item in items)
+    
+    sales_by_date_dict = defaultdict(lambda: {"revenue": 0.0, "sales": 0})
+    top_products_dict = defaultdict(lambda: {"revenue": 0.0, "sales": 0})
+    
+    thirty_days_ago = datetime.utcnow() - timedelta(days=30)
+    
+    for item in items:
+        # Top products
+        top_products_dict[item.product_id]["revenue"] += item.price * item.quantity
+        top_products_dict[item.product_id]["sales"] += item.quantity
+        
+        # Sales by date
+        if item.order and item.order.created_at >= thirty_days_ago:
+            date_str = item.order.created_at.strftime("%Y-%m-%d")
+            sales_by_date_dict[date_str]["revenue"] += item.price * item.quantity
+            sales_by_date_dict[date_str]["sales"] += item.quantity
+            
+    sales_by_date = [
+        {"date": k, "revenue": v["revenue"], "sales": v["sales"]}
+        for k, v in sorted(sales_by_date_dict.items())
+    ]
+    
+    top_products = [
+        {"product_id": k, "revenue": v["revenue"], "sales": v["sales"]}
+        for k, v in sorted(top_products_dict.items(), key=lambda x: x[1]["revenue"], reverse=True)[:5]
+    ]
+    
+    # recent items sold
+    recent_items = sorted(items, key=lambda x: x.id, reverse=True)[:10]
     
     return {
         "total_revenue": total_revenue,
         "total_sales": total_sales,
+        "sales_by_date": sales_by_date,
+        "top_products": top_products,
         "recent_sales": [
             {
                 "id": ri.id,
@@ -236,6 +283,7 @@ def get_seller_analytics(seller_id: int, db: Session = Depends(get_db)):
                 "quantity": ri.quantity,
                 "price": ri.price,
                 "is_approved": ri.is_approved,
+                "is_delivered": ri.is_delivered,
                 "date": ri.order.created_at if ri.order else None,
                 "order": {
                     "id": ri.order.id,
@@ -258,7 +306,38 @@ def approve_order_item(seller_id: int, item_id: int, db: Session = Depends(get_d
     
     item.is_approved = True
     db.commit()
+    
+    # Check if all items in the order are approved and if the order is paid
+    order = db.query(models.Order).options(joinedload(models.Order.items)).filter(models.Order.id == item.order_id).first()
+    if order and order.status == models.OrderStatus.PAID:
+        all_approved = all(i.is_approved for i in order.items)
+        if all_approved:
+            order.status = models.OrderStatus.SHIPPED
+            db.commit()
+            
     return {"status": "success", "is_approved": True}
+
+@app.post("/sellers/{seller_id}/items/{item_id}/deliver")
+def deliver_order_item(seller_id: int, item_id: int, db: Session = Depends(get_db)):
+    item = db.query(models.OrderItem).filter(models.OrderItem.id == item_id, models.OrderItem.seller_id == seller_id).first()
+    if not item:
+        raise HTTPException(status_code=404, detail="Order item not found or does not belong to this seller")
+    
+    if not item.is_approved:
+        raise HTTPException(status_code=400, detail="Order item must be approved before it can be delivered")
+
+    item.is_delivered = True
+    db.commit()
+    
+    # Check if all items in the order are delivered
+    order = db.query(models.Order).options(joinedload(models.Order.items)).filter(models.Order.id == item.order_id).first()
+    if order and order.status in [models.OrderStatus.PAID, models.OrderStatus.SHIPPED]:
+        all_delivered = all(i.is_delivered for i in order.items)
+        if all_delivered:
+            order.status = models.OrderStatus.DELIVERED
+            db.commit()
+            
+    return {"status": "success", "is_delivered": True}
 
 if __name__ == "__main__":
     import uvicorn

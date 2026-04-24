@@ -8,6 +8,7 @@ class OrderStatus(enum.Enum):
     PENDING = "pending"
     PAID = "paid"
     SHIPPED = "shipped"
+    DELIVERED = "delivered"
     CANCELLED = "cancelled"
 
 class Order(Base):
@@ -37,6 +38,7 @@ class OrderItem(Base):
     quantity = Column(Integer)
     price = Column(Float)
     is_approved = Column(Boolean, default=False)
+    is_delivered = Column(Boolean, default=False)
 
     order = relationship("Order", back_populates="items")
 
