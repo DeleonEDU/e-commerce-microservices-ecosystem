@@ -268,8 +268,8 @@ def get_seller_analytics(seller_id: int, db: Session = Depends(get_db)):
         for k, v in sorted(top_products_dict.items(), key=lambda x: x[1]["revenue"], reverse=True)[:5]
     ]
     
-    # recent items sold
-    recent_items = sorted(items, key=lambda x: x.id, reverse=True)[:10]
+    # all items sold (for management)
+    all_items = sorted(items, key=lambda x: x.id, reverse=True)
     
     return {
         "total_revenue": total_revenue,
@@ -294,7 +294,7 @@ def get_seller_analytics(seller_id: int, db: Session = Depends(get_db)):
                     "status": ri.order.status.value if ri.order else "pending"
                 } if ri.order else None
             }
-            for ri in recent_items
+            for ri in all_items
         ]
     }
 

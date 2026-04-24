@@ -39,12 +39,14 @@ import AlertModal, { AlertType } from '../components/ui/AlertModal';
 
 import TableRowProduct from '../components/TableRowProduct';
 import SellerAnalyticsCharts from '../components/SellerAnalyticsCharts';
+import SalesManagementModal from '../components/SalesManagementModal';
 
 const SellerDashboardPage: React.FC = () => {
   const { user, isAuthenticated } = useSelector((state: RootState) => state.auth);
   const navigate = useNavigate();
   
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isSalesModalOpen, setIsSalesModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | undefined>(undefined);
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -401,101 +403,58 @@ const SellerDashboardPage: React.FC = () => {
 
         {/* Recent Sales Section */}
         <div className="bg-white rounded-[40px] border border-slate-100 shadow-soft overflow-hidden mb-12">
-          <div className="p-8 border-b border-slate-50 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <h3 className="text-xl font-extrabold text-slate-900 tracking-tight">Необроблені продажі</h3>
+          <div className="p-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <h3 className="text-xl font-extrabold text-slate-900 tracking-tight">Управління замовленнями</h3>
+              <p className="text-sm font-medium text-slate-500 mt-1">Опрацьовуйте нові продажі та відстежуйте доставку</p>
+            </div>
+            <Button 
+              className="shadow-soft"
+              onClick={() => setIsSalesModalOpen(true)}
+            >
+              Відкрити всі замовлення
+            </Button>
           </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-slate-50/50">
-                  <th className="px-8 py-5 text-[10px] font-bold text-slate-400 uppercase tracking-widest">ID Замовлення</th>
-                  <th className="px-8 py-5 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Товар</th>
-                  <th className="px-8 py-5 text-[10px] font-bold text-slate-400 uppercase tracking-widest">К-сть</th>
-                  <th className="px-8 py-5 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Сума</th>
-                  <th className="px-8 py-5 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Статус</th>
-                  <th className="px-8 py-5 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Оплата/Доставка</th>
-                  <th className="px-8 py-5 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Дата</th>
-                  <th className="px-8 py-5 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-right">Дія</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-50">
-                {isLoadingAnalytics ? (
-                  <tr>
-                    <td colSpan={8} className="px-8 py-12 text-center text-slate-400">
-                      <Loader2 className="animate-spin mx-auto mb-2" size={24} />
-                      <p className="text-xs font-bold uppercase">Завантаження...</p>
-                    </td>
-                  </tr>
-                ) : !analyticsData?.recent_sales?.length ? (
-                  <tr>
-                    <td colSpan={8} className="px-8 py-12 text-center text-slate-400">
-                      <p className="font-medium">Немає недавніх продажів</p>
-                    </td>
-                  </tr>
-                ) : (
-                  analyticsData.recent_sales.map((sale: any) => (
-                    <tr key={sale.id} className="hover:bg-slate-50/50 transition-colors cursor-pointer" onClick={() => setSelectedSaleDetails(sale)}>
-                      <td className="px-8 py-5 font-bold text-slate-900">#{sale.id}</td>
-                      <td className="px-8 py-5">
-                        <TableRowProduct productId={sale.product_id} />
-                      </td>
-                      <td className="px-8 py-5 font-bold text-slate-900">{sale.quantity} шт.</td>
-                      <td className="px-8 py-5 font-extrabold text-slate-900">${(sale.price * sale.quantity).toFixed(2)}</td>
-                      <td className="px-8 py-5">
-                        <span className={`px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider ${sale.is_delivered ? 'bg-emerald-50 text-emerald-600' : sale.is_approved ? 'bg-indigo-50 text-indigo-600' : 'bg-amber-50 text-amber-600'}`}>
-                          {sale.is_delivered ? 'Доставлено' : sale.is_approved ? 'Комплектується' : 'Очікує'}
-                        </span>
-                      </td>
-                      <td className="px-8 py-5">
-                        {sale.order?.status === 'paid' ? (
-                          <span className="px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider bg-sky-50 text-sky-600 flex items-center w-max gap-1">
-                            <CheckCircle2 size={12} />
-                            Оплачено
-                          </span>
-                        ) : sale.order?.status === 'shipped' ? (
-                          <span className="px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider bg-indigo-50 text-indigo-600 flex items-center w-max gap-1">
-                            <CheckCircle2 size={12} />
-                            Комплектується
-                          </span>
-                        ) : sale.order?.status === 'delivered' ? (
-                          <span className="px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider bg-emerald-50 text-emerald-600 flex items-center w-max gap-1">
-                            <CheckCircle2 size={12} />
-                            Доставлено
-                          </span>
-                        ) : (
-                          <span className="px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider bg-amber-50 text-amber-600 flex items-center w-max gap-1">
-                            <Clock size={12} />
-                            В обробці
-                          </span>
-                        )}
-                      </td>
-                      <td className="px-8 py-5 text-slate-400 font-medium">
-                        {sale.date ? format(new Date(sale.date), 'dd MMM yyyy, HH:mm', { locale: uk }) : '—'}
-                      </td>
-                      <td className="px-8 py-5 text-right">
-                        {!sale.is_approved ? (
-                          <Button size="sm" onClick={(e) => {
-                            e.stopPropagation();
-                            handleApproveSale(sale.id);
-                          }}>
-                            Підтвердити
-                          </Button>
-                        ) : !sale.is_delivered ? (
-                          <Button size="sm" variant="outline" onClick={(e) => {
-                            e.stopPropagation();
-                            handleDeliverSale(sale.id);
-                          }}>
-                            Доставити
-                          </Button>
-                        ) : (
-                          <span className="text-emerald-600 font-bold text-sm">Доставлено</span>
-                        )}
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+          
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-px bg-slate-100 border-t border-slate-100">
+            <div className="bg-white p-6 hover:bg-slate-50 transition-colors cursor-pointer" onClick={() => setIsSalesModalOpen(true)}>
+              <div className="flex items-center gap-3 mb-2">
+                <div className="w-8 h-8 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center">
+                  <Clock size={16} />
+                </div>
+                <span className="font-bold text-slate-900">Нові</span>
+              </div>
+              <div className="text-2xl font-extrabold text-slate-900">
+                {analyticsData?.recent_sales?.filter((s: any) => !s.is_approved && !s.is_delivered).length || 0}
+              </div>
+              <div className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">Очікують підтвердження</div>
+            </div>
+            
+            <div className="bg-white p-6 hover:bg-slate-50 transition-colors cursor-pointer" onClick={() => setIsSalesModalOpen(true)}>
+              <div className="flex items-center gap-3 mb-2">
+                <div className="w-8 h-8 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center">
+                  <Package size={16} />
+                </div>
+                <span className="font-bold text-slate-900">В процесі</span>
+              </div>
+              <div className="text-2xl font-extrabold text-slate-900">
+                {analyticsData?.recent_sales?.filter((s: any) => s.is_approved && !s.is_delivered).length || 0}
+              </div>
+              <div className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">Комплектуються</div>
+            </div>
+            
+            <div className="bg-white p-6 hover:bg-slate-50 transition-colors cursor-pointer" onClick={() => setIsSalesModalOpen(true)}>
+              <div className="flex items-center gap-3 mb-2">
+                <div className="w-8 h-8 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                  <CheckCircle2 size={16} />
+                </div>
+                <span className="font-bold text-slate-900">Завершені</span>
+              </div>
+              <div className="text-2xl font-extrabold text-slate-900">
+                {analyticsData?.recent_sales?.filter((s: any) => s.is_delivered).length || 0}
+              </div>
+              <div className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">Успішно доставлені</div>
+            </div>
           </div>
         </div>
 
@@ -628,6 +587,16 @@ const SellerDashboardPage: React.FC = () => {
         </div>
       </div>
 
+      {/* Sales Management Modal */}
+      <SalesManagementModal
+        isOpen={isSalesModalOpen}
+        onClose={() => setIsSalesModalOpen(false)}
+        sales={analyticsData?.recent_sales || []}
+        onApprove={handleApproveSale}
+        onDeliver={handleDeliverSale}
+        onViewDetails={setSelectedSaleDetails}
+      />
+
       {/* Product Form Modal */}
       <ProductFormModal 
         isOpen={isModalOpen}
@@ -654,7 +623,7 @@ const SellerDashboardPage: React.FC = () => {
 
       {/* Order Details Modal for Seller */}
       {selectedSaleDetails && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => setSelectedSaleDetails(null)} />
           <div className="relative bg-white rounded-[40px] p-8 max-w-lg w-full shadow-2xl animate-fade-in text-left border border-slate-100">
             <div className="flex items-center justify-between mb-8">

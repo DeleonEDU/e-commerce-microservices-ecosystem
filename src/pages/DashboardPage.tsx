@@ -196,8 +196,8 @@ const DashboardPage: React.FC = () => {
   }
 
   const totalOrders = orders.length;
-  const deliveredCount = orders.filter((o) => o.status === 'shipped').length;
-  const inProgressCount = orders.filter((o) => o.status === 'pending' || o.status === 'paid').length;
+  const deliveredCount = orders.filter((o) => o.status === 'delivered').length;
+  const inProgressCount = orders.filter((o) => ['pending', 'paid', 'shipped'].includes(o.status)).length;
   const recentOrders = orders.slice(0, 8);
 
   return (
