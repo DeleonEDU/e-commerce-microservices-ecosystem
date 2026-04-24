@@ -579,7 +579,7 @@ const SellerDashboardPage: React.FC = () => {
           <div className="relative bg-white rounded-[40px] p-8 max-w-lg w-full shadow-2xl animate-fade-in text-left border border-slate-100">
             <div className="flex items-center justify-between mb-8">
               <div>
-                <h3 className="text-2xl font-extrabold text-slate-900 tracking-tight">Замовлення #{selectedSaleDetails.id}</h3>
+                <h3 className="text-2xl font-extrabold text-slate-900 tracking-tight">Замовлення #{selectedSaleDetails?.id}</h3>
                 <p className="text-slate-500 font-medium mt-1">
                   {selectedSaleDetails?.date && !Number.isNaN(new Date(selectedSaleDetails.date).getTime()) 
                     ? format(new Date(selectedSaleDetails.date), 'dd MMMM yyyy, HH:mm', { locale: uk }) 
@@ -601,16 +601,16 @@ const SellerDashboardPage: React.FC = () => {
                   <Package size={14} /> Товар
                 </h4>
                 <div className="mb-4 bg-white p-3 rounded-2xl border border-slate-100 shadow-sm">
-                  <TableRowProduct productId={selectedSaleDetails.product_id} />
+                  <TableRowProduct productId={selectedSaleDetails?.product_id} />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="bg-white p-3 rounded-2xl border border-slate-100 shadow-sm">
                     <span className="block text-xs font-bold text-slate-400 mb-1">Кількість</span>
-                    <span className="font-extrabold text-slate-900">{selectedSaleDetails.quantity} шт.</span>
+                    <span className="font-extrabold text-slate-900">{selectedSaleDetails?.quantity} шт.</span>
                   </div>
                   <div className="bg-white p-3 rounded-2xl border border-slate-100 shadow-sm">
                     <span className="block text-xs font-bold text-slate-400 mb-1">Сума</span>
-                    <span className="font-extrabold text-brand-600">${(selectedSaleDetails.price * selectedSaleDetails.quantity).toFixed(2)}</span>
+                    <span className="font-extrabold text-brand-600">${((selectedSaleDetails?.price || 0) * (selectedSaleDetails?.quantity || 0)).toFixed(2)}</span>
                   </div>
                 </div>
               </div>
@@ -624,33 +624,33 @@ const SellerDashboardPage: React.FC = () => {
                 <div className="relative pl-3">
                   <div className="absolute top-2 bottom-2 left-4 w-0.5 bg-slate-200 rounded-full"></div>
                   <div className={`absolute top-2 left-4 w-0.5 bg-emerald-500 rounded-full transition-all duration-500 ${
-                    selectedSaleDetails.is_delivered ? 'h-[calc(100%-16px)]' :
-                    selectedSaleDetails.is_approved ? 'h-[50%]' :
-                    ['paid', 'shipped', 'delivered'].includes(selectedSaleDetails.order?.status) ? 'h-0' : 'h-0'
+                    selectedSaleDetails?.is_delivered ? 'h-[calc(100%-16px)]' :
+                    selectedSaleDetails?.is_approved ? 'h-[50%]' :
+                    ['paid', 'shipped', 'delivered'].includes(selectedSaleDetails?.order?.status) ? 'h-0' : 'h-0'
                   }`}></div>
                   
                   <div className="space-y-5">
                     {/* Step 1: Paid */}
                     <div className="relative flex items-center gap-4">
-                      <div className={`w-3 h-3 rounded-full z-10 ring-4 ring-slate-50 ${['paid', 'shipped', 'delivered'].includes(selectedSaleDetails.order?.status) ? 'bg-emerald-500' : 'bg-slate-300'}`}></div>
+                      <div className={`w-3 h-3 rounded-full z-10 ring-4 ring-slate-50 ${['paid', 'shipped', 'delivered'].includes(selectedSaleDetails?.order?.status) ? 'bg-emerald-500' : 'bg-slate-300'}`}></div>
                       <div>
-                        <p className={`text-sm font-bold ${['paid', 'shipped', 'delivered'].includes(selectedSaleDetails.order?.status) ? 'text-slate-900' : 'text-slate-400'}`}>Оплачено покупцем</p>
+                        <p className={`text-sm font-bold ${['paid', 'shipped', 'delivered'].includes(selectedSaleDetails?.order?.status) ? 'text-slate-900' : 'text-slate-400'}`}>Оплачено покупцем</p>
                       </div>
                     </div>
                     
                     {/* Step 2: Approved/Shipped */}
                     <div className="relative flex items-center gap-4">
-                      <div className={`w-3 h-3 rounded-full z-10 ring-4 ring-slate-50 ${selectedSaleDetails.is_approved ? 'bg-emerald-500' : 'bg-slate-300'}`}></div>
+                      <div className={`w-3 h-3 rounded-full z-10 ring-4 ring-slate-50 ${selectedSaleDetails?.is_approved ? 'bg-emerald-500' : 'bg-slate-300'}`}></div>
                       <div>
-                        <p className={`text-sm font-bold ${selectedSaleDetails.is_approved ? 'text-slate-900' : 'text-slate-400'}`}>Підтверджено (Комплектується)</p>
+                        <p className={`text-sm font-bold ${selectedSaleDetails?.is_approved ? 'text-slate-900' : 'text-slate-400'}`}>Підтверджено (Комплектується)</p>
                       </div>
                     </div>
                     
                     {/* Step 3: Delivered */}
                     <div className="relative flex items-center gap-4">
-                      <div className={`w-3 h-3 rounded-full z-10 ring-4 ring-slate-50 ${selectedSaleDetails.is_delivered ? 'bg-emerald-500' : 'bg-slate-300'}`}></div>
+                      <div className={`w-3 h-3 rounded-full z-10 ring-4 ring-slate-50 ${selectedSaleDetails?.is_delivered ? 'bg-emerald-500' : 'bg-slate-300'}`}></div>
                       <div>
-                        <p className={`text-sm font-bold ${selectedSaleDetails.is_delivered ? 'text-emerald-600' : 'text-slate-400'}`}>Доставлено</p>
+                        <p className={`text-sm font-bold ${selectedSaleDetails?.is_delivered ? 'text-emerald-600' : 'text-slate-400'}`}>Доставлено</p>
                       </div>
                     </div>
                   </div>
@@ -664,9 +664,9 @@ const SellerDashboardPage: React.FC = () => {
                     <Map size={14} /> Дані для відправки
                   </h4>
                   <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm space-y-1">
-                    <p className="font-extrabold text-slate-900 text-lg">{selectedSaleDetails.order.full_name || 'Не вказано ім\'я'}</p>
-                    <p className="text-slate-600 font-medium">{selectedSaleDetails.order.address || 'Не вказана адреса'}</p>
-                    <p className="text-slate-500 text-sm">{selectedSaleDetails.order.city || 'Не вказане місто'}, {selectedSaleDetails.order.zip_code || ''}</p>
+                    <p className="font-extrabold text-slate-900 text-lg">{selectedSaleDetails?.order?.full_name || 'Не вказано ім\'я'}</p>
+                    <p className="text-slate-600 font-medium">{selectedSaleDetails?.order?.address || 'Не вказана адреса'}</p>
+                    <p className="text-slate-500 text-sm">{selectedSaleDetails?.order?.city || 'Не вказане місто'}, {selectedSaleDetails?.order?.zip_code || ''}</p>
                   </div>
                 </div>
               )}
@@ -674,21 +674,21 @@ const SellerDashboardPage: React.FC = () => {
             
             <div className="flex gap-4 pt-2 border-t border-slate-100">
               <Button variant="outline" className="flex-1 shadow-sm" onClick={() => setSelectedSaleDetails(null)}>Закрити</Button>
-              {!selectedSaleDetails.is_approved ? (
+              {!selectedSaleDetails?.is_approved ? (
                 <Button 
                   className="flex-1 shadow-soft" 
                   onClick={() => {
-                    handleApproveSale(selectedSaleDetails.id);
+                    handleApproveSale(selectedSaleDetails?.id);
                     setSelectedSaleDetails(null);
                   }}
                 >
                   Підтвердити
                 </Button>
-              ) : !selectedSaleDetails.is_delivered ? (
+              ) : !selectedSaleDetails?.is_delivered ? (
                 <Button 
                   className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white shadow-soft shadow-emerald-500/20" 
                   onClick={() => {
-                    handleDeliverSale(selectedSaleDetails.id);
+                    handleDeliverSale(selectedSaleDetails?.id);
                     setSelectedSaleDetails(null);
                   }}
                 >

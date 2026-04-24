@@ -198,13 +198,13 @@ const DashboardPage: React.FC = () => {
   const validOrders = Array.isArray(orders) ? orders : [];
   const totalOrders = validOrders.length;
   const deliveredCount = validOrders.filter((o) => {
-    const isAnyDelivered = Array.isArray(o?.items) ? o.items.some((i: any) => i.is_delivered) : false;
+    const isAnyDelivered = Array.isArray(o?.items) ? o?.items?.some((i: any) => i?.is_delivered) : false;
     return isAnyDelivered || o?.status === 'delivered';
   }).length;
   const inProgressCount = validOrders.filter((o) => {
-    const isAnyDelivered = Array.isArray(o?.items) ? o.items.some((i: any) => i.is_delivered) : false;
+    const isAnyDelivered = Array.isArray(o?.items) ? o?.items?.some((i: any) => i?.is_delivered) : false;
     if (isAnyDelivered) return false;
-    return ['pending', 'paid', 'shipped'].includes(o?.status);
+    return o?.status ? ['pending', 'paid', 'shipped'].includes(o.status) : false;
   }).length;
   const recentOrders = validOrders.slice(0, 8);
 
@@ -417,8 +417,8 @@ const DashboardPage: React.FC = () => {
                         </thead>
                         <tbody className="divide-y divide-slate-50">
                           {(activeTab === 'orders' ? validOrders : recentOrders).map((order) => {
-                            const isAnyDelivered = Array.isArray(order?.items) ? order.items.some((i: any) => i.is_delivered) : false;
-                            const isAnyApproved = Array.isArray(order?.items) ? order.items.some((i: any) => i.is_approved) : false;
+                            const isAnyDelivered = Array.isArray(order?.items) ? order?.items?.some((i: any) => i?.is_delivered) : false;
+                            const isAnyApproved = Array.isArray(order?.items) ? order?.items?.some((i: any) => i?.is_approved) : false;
                             const displayStatus = isAnyDelivered ? 'delivered' : isAnyApproved && order?.status !== 'delivered' ? 'shipped' : order?.status;
                             const sp = statusPresentation[displayStatus as OrderStatus] || statusPresentation['pending'];
                             const Icon = sp.icon || Clock;
@@ -490,20 +490,20 @@ const DashboardPage: React.FC = () => {
                         </thead>
                         <tbody className="divide-y divide-slate-50">
                           {Array.isArray(payments) && payments.map((payment) => {
-                            const created = new Date(payment.created_at);
+                            const created = new Date(payment?.created_at);
                             const dateLabel = Number.isNaN(created.getTime())
                               ? '—'
                               : format(created, 'd MMMM yyyy, HH:mm', { locale: uk });
                             
-                            const isCompleted = payment.status === 'completed';
-                            const isFailed = payment.status === 'failed';
+                            const isCompleted = payment?.status === 'completed';
+                            const isFailed = payment?.status === 'failed';
                             
                             return (
-                              <tr key={payment.id} className="hover:bg-slate-50/30 transition-colors cursor-pointer" onClick={() => setSelectedPaymentDetails(payment)}>
-                                <td className="px-8 py-6 font-bold text-slate-900">#{payment.id}</td>
+                              <tr key={payment?.id} className="hover:bg-slate-50/30 transition-colors cursor-pointer" onClick={() => setSelectedPaymentDetails(payment)}>
+                                <td className="px-8 py-6 font-bold text-slate-900">#{payment?.id}</td>
                                 <td className="px-8 py-6 text-slate-500 font-medium capitalize">{dateLabel}</td>
                                 <td className="px-8 py-6 font-extrabold text-slate-900">
-                                  ${payment.amount.toFixed(2)}
+                                  ${(payment?.amount || 0).toFixed(2)}
                                 </td>
                                 <td className="px-8 py-6">
                                   <div
@@ -663,11 +663,11 @@ const DashboardPage: React.FC = () => {
           <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => setSelectedOrderDetails(null)} />
           <div className="relative bg-white rounded-[32px] p-8 max-w-lg w-full shadow-2xl animate-fade-in text-left max-h-[90vh] overflow-y-auto no-scrollbar">
             <div className="flex items-center justify-between mb-6">
-              <h3 className="text-2xl font-extrabold text-slate-900">Замовлення #{selectedOrderDetails.id}</h3>
+              <h3 className="text-2xl font-extrabold text-slate-900">Замовлення #{selectedOrderDetails?.id}</h3>
               {(() => {
-                const isAnyDelivered = Array.isArray(selectedOrderDetails.items) ? selectedOrderDetails.items.some((i: any) => i.is_delivered) : false;
-                const isAnyApproved = Array.isArray(selectedOrderDetails.items) ? selectedOrderDetails.items.some((i: any) => i.is_approved) : false;
-                const displayStatus = isAnyDelivered ? 'delivered' : isAnyApproved && selectedOrderDetails.status !== 'delivered' ? 'shipped' : selectedOrderDetails.status;
+                const isAnyDelivered = Array.isArray(selectedOrderDetails?.items) ? selectedOrderDetails?.items?.some((i: any) => i?.is_delivered) : false;
+                const isAnyApproved = Array.isArray(selectedOrderDetails?.items) ? selectedOrderDetails?.items?.some((i: any) => i?.is_approved) : false;
+                const displayStatus = isAnyDelivered ? 'delivered' : isAnyApproved && selectedOrderDetails?.status !== 'delivered' ? 'shipped' : selectedOrderDetails?.status;
                 const sp = statusPresentation[displayStatus as OrderStatus] || statusPresentation['pending'];
                 return (
                   <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-full ${sp.bg} ${sp.color} text-xs font-bold`}>
@@ -685,9 +685,9 @@ const DashboardPage: React.FC = () => {
               </h4>
               
               {(() => {
-                const isAnyDelivered = Array.isArray(selectedOrderDetails.items) ? selectedOrderDetails.items.some((i: any) => i.is_delivered) : false;
-                const isAnyApproved = Array.isArray(selectedOrderDetails.items) ? selectedOrderDetails.items.some((i: any) => i.is_approved) : false;
-                const displayStatus = isAnyDelivered ? 'delivered' : isAnyApproved && selectedOrderDetails.status !== 'delivered' ? 'shipped' : selectedOrderDetails.status;
+                const isAnyDelivered = Array.isArray(selectedOrderDetails?.items) ? selectedOrderDetails?.items?.some((i: any) => i?.is_delivered) : false;
+                const isAnyApproved = Array.isArray(selectedOrderDetails?.items) ? selectedOrderDetails?.items?.some((i: any) => i?.is_approved) : false;
+                const displayStatus = isAnyDelivered ? 'delivered' : isAnyApproved && selectedOrderDetails?.status !== 'delivered' ? 'shipped' : selectedOrderDetails?.status;
                 
                 return (
                   <div className="relative">
@@ -717,17 +717,17 @@ const DashboardPage: React.FC = () => {
                       
                       <div className="relative flex items-center gap-4">
                         <div className={`w-6 h-6 rounded-full flex items-center justify-center z-10 shadow-sm ${
-                          ['paid', 'shipped', 'delivered'].includes(displayStatus) 
+                          displayStatus && ['paid', 'shipped', 'delivered'].includes(displayStatus) 
                           ? 'bg-emerald-500 text-white' 
                           : 'bg-white border-2 border-slate-200 text-slate-300'
                         }`}>
-                          {['paid', 'shipped', 'delivered'].includes(displayStatus) && <CheckCircle2 size={12} />}
+                          {displayStatus && ['paid', 'shipped', 'delivered'].includes(displayStatus) && <CheckCircle2 size={12} />}
                         </div>
                         <div>
-                          <p className={`text-sm font-bold ${['paid', 'shipped', 'delivered'].includes(displayStatus) ? 'text-slate-900' : 'text-slate-400'}`}>
+                          <p className={`text-sm font-bold ${displayStatus && ['paid', 'shipped', 'delivered'].includes(displayStatus) ? 'text-slate-900' : 'text-slate-400'}`}>
                             Оплачено, обробка
                           </p>
-                          {['paid', 'shipped', 'delivered'].includes(displayStatus) && (
+                          {displayStatus && ['paid', 'shipped', 'delivered'].includes(displayStatus) && (
                             <p className="text-xs text-emerald-600 font-medium mt-1 flex items-center gap-1">
                               <CreditCard size={12} />
                               Оплата підтверджена
@@ -738,17 +738,17 @@ const DashboardPage: React.FC = () => {
 
                       <div className="relative flex items-center gap-4">
                         <div className={`w-6 h-6 rounded-full flex items-center justify-center z-10 shadow-sm ${
-                          ['shipped', 'delivered'].includes(displayStatus) 
+                          displayStatus && ['shipped', 'delivered'].includes(displayStatus) 
                           ? 'bg-emerald-500 text-white' 
                           : 'bg-white border-2 border-slate-200 text-slate-300'
                         }`}>
-                          {['shipped', 'delivered'].includes(displayStatus) && <CheckCircle2 size={12} />}
+                          {displayStatus && ['shipped', 'delivered'].includes(displayStatus) && <CheckCircle2 size={12} />}
                         </div>
                         <div>
-                          <p className={`text-sm font-bold ${['shipped', 'delivered'].includes(displayStatus) ? 'text-slate-900' : 'text-slate-400'}`}>
+                          <p className={`text-sm font-bold ${displayStatus && ['shipped', 'delivered'].includes(displayStatus) ? 'text-slate-900' : 'text-slate-400'}`}>
                             Комплектується
                           </p>
-                          {['shipped', 'delivered'].includes(displayStatus) && (
+                          {displayStatus && ['shipped', 'delivered'].includes(displayStatus) && (
                             <p className="text-xs text-emerald-600 font-medium mt-1 flex items-center gap-1">
                               <Package size={12} />
                               Продавець комплектує замовлення
@@ -787,16 +787,16 @@ const DashboardPage: React.FC = () => {
               <div>
                 <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Адреса доставки</h4>
                 <div className="p-4 bg-white border border-slate-100 rounded-2xl">
-                  <p className="font-bold text-slate-900">{selectedOrderDetails.full_name || 'Не вказано'}</p>
-                  <p className="text-sm text-slate-600 mt-1">{selectedOrderDetails.address || 'Адреса відсутня'}</p>
-                  <p className="text-sm text-slate-600">{selectedOrderDetails.city || ''}, {selectedOrderDetails.zip_code || ''}</p>
+                  <p className="font-bold text-slate-900">{selectedOrderDetails?.full_name || 'Не вказано'}</p>
+                  <p className="text-sm text-slate-600 mt-1">{selectedOrderDetails?.address || 'Адреса відсутня'}</p>
+                  <p className="text-sm text-slate-600">{selectedOrderDetails?.city || ''}, {selectedOrderDetails?.zip_code || ''}</p>
                 </div>
               </div>
 
               <div>
                 <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Товари</h4>
                 <div className="space-y-3">
-                  {Array.isArray(selectedOrderDetails.items) && selectedOrderDetails.items.map((item: any, idx: number) => (
+                  {Array.isArray(selectedOrderDetails?.items) && selectedOrderDetails?.items?.map((item: any, idx: number) => (
                     <OrderProductItem 
                       key={idx} 
                       productId={item.product_id} 
@@ -804,7 +804,7 @@ const DashboardPage: React.FC = () => {
                       price={item.price} 
                       isApproved={item.is_approved}
                       isDelivered={item.is_delivered}
-                      orderStatus={selectedOrderDetails.status}
+                      orderStatus={selectedOrderDetails?.status}
                     />
                   ))}
                 </div>
@@ -812,7 +812,7 @@ const DashboardPage: React.FC = () => {
               
               <div className="flex justify-between items-center pt-4 border-t border-slate-100">
                 <span className="font-bold text-slate-500">Загальна сума</span>
-                <span className="text-2xl font-extrabold text-brand-600">${selectedOrderDetails.total_price.toFixed(2)}</span>
+                <span className="text-2xl font-extrabold text-brand-600">${(selectedOrderDetails?.total_price || 0).toFixed(2)}</span>
               </div>
             </div>
 
@@ -830,13 +830,13 @@ const DashboardPage: React.FC = () => {
               <h3 className="text-2xl font-extrabold text-slate-900">Деталі платежу</h3>
               <div
                 className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold ${
-                  selectedPaymentDetails.status === 'completed' ? 'bg-emerald-50 text-emerald-600' : 
-                  selectedPaymentDetails.status === 'failed' ? 'bg-rose-50 text-rose-600' : 
+                  selectedPaymentDetails?.status === 'completed' ? 'bg-emerald-50 text-emerald-600' : 
+                  selectedPaymentDetails?.status === 'failed' ? 'bg-rose-50 text-rose-600' : 
                   'bg-amber-50 text-amber-500'
                 }`}
               >
-                {selectedPaymentDetails.status === 'completed' ? <CheckCircle2 size={14} /> : selectedPaymentDetails.status === 'failed' ? <Ban size={14} /> : <Clock size={14} />}
-                {selectedPaymentDetails.status === 'completed' ? 'Успішно' : selectedPaymentDetails.status === 'failed' ? 'Помилка' : 'В обробці'}
+                {selectedPaymentDetails?.status === 'completed' ? <CheckCircle2 size={14} /> : selectedPaymentDetails?.status === 'failed' ? <Ban size={14} /> : <Clock size={14} />}
+                {selectedPaymentDetails?.status === 'completed' ? 'Успішно' : selectedPaymentDetails?.status === 'failed' ? 'Помилка' : 'В обробці'}
               </div>
             </div>
 
@@ -844,18 +844,18 @@ const DashboardPage: React.FC = () => {
               <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
                 <div className="flex justify-between items-center mb-3">
                   <span className="text-sm font-medium text-slate-500">ID Платежу</span>
-                  <span className="font-bold text-slate-900">#{selectedPaymentDetails.id}</span>
+                  <span className="font-bold text-slate-900">#{selectedPaymentDetails?.id}</span>
                 </div>
                 <div className="flex justify-between items-center mb-3">
                   <span className="text-sm font-medium text-slate-500">Замовлення</span>
                   <span className="font-bold text-brand-600 cursor-pointer hover:underline" onClick={() => {
                     // Find the order if possible
-                    const order = orders.find((o) => o.id === selectedPaymentDetails.order_id);
+                    const order = Array.isArray(orders) ? orders.find((o) => o.id === selectedPaymentDetails?.order_id) : null;
                     if (order) {
                       setSelectedPaymentDetails(null);
                       setSelectedOrderDetails(order);
                     }
-                  }}>#{selectedPaymentDetails.order_id}</span>
+                  }}>#{selectedPaymentDetails?.order_id}</span>
                 </div>
                 <div className="flex justify-between items-center mb-3">
                   <span className="text-sm font-medium text-slate-500">Дата та час</span>
@@ -867,15 +867,15 @@ const DashboardPage: React.FC = () => {
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-sm font-medium text-slate-500">Stripe ID</span>
-                  <span className="font-mono text-xs font-bold text-slate-600 bg-slate-200/50 px-2 py-1 rounded truncate max-w-[150px]" title={selectedPaymentDetails.stripe_payment_intent_id}>
-                    {selectedPaymentDetails.stripe_payment_intent_id || '—'}
+                  <span className="font-mono text-xs font-bold text-slate-600 bg-slate-200/50 px-2 py-1 rounded truncate max-w-[150px]" title={selectedPaymentDetails?.stripe_payment_intent_id}>
+                    {selectedPaymentDetails?.stripe_payment_intent_id || '—'}
                   </span>
                 </div>
               </div>
 
               <div className="flex justify-between items-center p-4 bg-brand-50 rounded-2xl border border-brand-100">
                 <span className="font-bold text-brand-900">Сума платежу</span>
-                <span className="text-2xl font-extrabold text-brand-600">${selectedPaymentDetails.amount.toFixed(2)}</span>
+                <span className="text-2xl font-extrabold text-brand-600">${(selectedPaymentDetails?.amount || 0).toFixed(2)}</span>
               </div>
             </div>
 
