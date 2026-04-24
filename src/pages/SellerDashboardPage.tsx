@@ -40,6 +40,7 @@ import AlertModal, { AlertType } from '../components/ui/AlertModal';
 import TableRowProduct from '../components/TableRowProduct';
 import SellerAnalyticsCharts from '../components/SellerAnalyticsCharts';
 import SalesManagementModal from '../components/SalesManagementModal';
+import ProductsManagementModal from '../components/ProductsManagementModal';
 
 const SellerDashboardPage: React.FC = () => {
   const { user, isAuthenticated } = useSelector((state: RootState) => state.auth);
@@ -47,6 +48,7 @@ const SellerDashboardPage: React.FC = () => {
   
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSalesModalOpen, setIsSalesModalOpen] = useState(false);
+  const [isProductsModalOpen, setIsProductsModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | undefined>(undefined);
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -458,134 +460,83 @@ const SellerDashboardPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Products Table Section */}
+        {/* Products Section */}
         <div className="bg-white rounded-[40px] border border-slate-100 shadow-soft overflow-hidden">
-          <div className="p-8 border-b border-slate-50 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <h3 className="text-xl font-extrabold text-slate-900 tracking-tight">Мої товари</h3>
-            <div className="relative w-full sm:w-64 group">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-brand-500 transition-colors" size={18} />
-              <input 
-                type="text" 
-                placeholder="Пошук по товарах..."
-                className="w-full pl-12 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:ring-4 focus:ring-brand-500/20 focus:border-brand-500 outline-none transition-all font-medium text-sm shadow-sm hover:border-slate-300"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
+          <div className="p-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <h3 className="text-xl font-extrabold text-slate-900 tracking-tight">Мої товари</h3>
+              <p className="text-sm font-medium text-slate-500 mt-1">Керуйте асортиментом та залишками на складі</p>
             </div>
+            <Button 
+              className="shadow-soft"
+              onClick={() => setIsProductsModalOpen(true)}
+            >
+              Управління товарами
+            </Button>
           </div>
-
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-slate-50/50">
-                  <th className="px-8 py-5 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Товар</th>
-                  <th className="px-8 py-5 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Категорія</th>
-                  <th className="px-8 py-5 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Ціна</th>
-                  <th className="px-8 py-5 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Залишок</th>
-                  <th className="px-8 py-5 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Рейтинг</th>
-                  <th className="px-8 py-5 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-right">Дії</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-50">
-                {isLoading ? (
-                  <tr>
-                    <td colSpan={6} className="px-8 py-24 text-center">
-                      <div className="flex flex-col items-center justify-center opacity-50">
-                        <Loader2 className="animate-spin text-brand-600 mb-4" size={32} />
-                        <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Завантаження...</p>
-                      </div>
-                    </td>
-                  </tr>
-                ) : filteredProducts.length === 0 ? (
-                  <tr>
-                    <td colSpan={6} className="px-8 py-24 text-center">
-                      <div className="flex flex-col items-center justify-center opacity-50">
-                        <AlertCircle className="text-slate-200 mb-4" size={48} />
-                        <p className="text-lg font-bold text-slate-900 mb-1">Товарів не знайдено</p>
-                        <p className="text-sm text-slate-400">Спробуйте змінити пошуковий запит або додайте новий товар.</p>
-                      </div>
-                    </td>
-                  </tr>
-                ) : (
-                  filteredProducts.map((product) => (
-                    <tr key={product.id} className="hover:bg-slate-50/50 transition-colors group">
-                      <td className="px-8 py-6">
-                        <div className="flex items-center gap-4">
-                          <div className="w-12 h-12 rounded-xl bg-slate-100 overflow-hidden border border-slate-100 flex-shrink-0">
-                            {product.image_url ? (
-                              <img src={product.image_url} alt={product.name} className="w-full h-full object-cover" />
-                            ) : (
-                              <div className="w-full h-full flex items-center justify-center text-slate-300">
-                                <Package size={20} />
-                              </div>
-                            )}
-                          </div>
-                          <div>
-                            <div className="font-bold text-slate-900 line-clamp-1">{product.name}</div>
-                            <div className="text-xs text-slate-400 font-medium">{product.brand || 'Без бренду'}</div>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-8 py-6">
-                        <span className="px-2.5 py-1 rounded-lg bg-slate-100 text-slate-600 text-[10px] font-bold uppercase tracking-wider">
-                          {product.category_name}
-                        </span>
-                      </td>
-                      <td className="px-8 py-6">
-                        <div className="font-extrabold text-slate-900">${product.price.toFixed(2)}</div>
-                      </td>
-                      <td className="px-8 py-6">
-                        <div className={`text-sm font-bold ${product.stock < 10 ? 'text-rose-500' : 'text-slate-600'}`}>
-                          {product.stock} шт.
-                        </div>
-                      </td>
-                      <td className="px-8 py-6">
-                        <div className="flex items-center gap-1.5 font-bold text-slate-900">
-                          <TrendingUp size={14} className="text-emerald-500" />
-                          {product.rating || '0.0'}
-                        </div>
-                      </td>
-                      <td className="px-8 py-6 text-right">
-                        <div className="flex flex-wrap items-center justify-end gap-2">
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            className="rounded-xl h-9 px-3 text-xs font-bold gap-1.5 border-slate-200"
-                            onClick={() => {
-                              setEditingProduct(product);
-                              setIsModalOpen(true);
-                            }}
-                          >
-                            <Edit2 size={14} />
-                            Редагувати
-                          </Button>
-                          <Link
-                            to={`/product/${product.id}`}
-                            target="_blank"
-                            className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 text-slate-400 hover:text-brand-600 hover:border-brand-200 transition-colors"
-                            title="У новій вкладці"
-                          >
-                            <ExternalLink size={16} />
-                          </Link>
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteProduct(product.id)}
-                            className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 text-slate-400 hover:text-rose-500 hover:border-rose-200 transition-colors"
-                            title="Видалити"
-                          >
-                            <Trash2 size={16} />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+          
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-px bg-slate-100 border-t border-slate-100">
+            <div className="bg-white p-6 hover:bg-slate-50 transition-colors cursor-pointer" onClick={() => setIsProductsModalOpen(true)}>
+              <div className="flex items-center gap-3 mb-2">
+                <div className="w-8 h-8 rounded-full bg-brand-50 text-brand-600 flex items-center justify-center">
+                  <Package size={16} />
+                </div>
+                <span className="font-bold text-slate-900">Всього товарів</span>
+              </div>
+              <div className="text-2xl font-extrabold text-slate-900">
+                {productsData?.count || 0}
+              </div>
+              <div className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">В каталозі</div>
+            </div>
+            
+            <div className="bg-white p-6 hover:bg-slate-50 transition-colors cursor-pointer" onClick={() => setIsProductsModalOpen(true)}>
+              <div className="flex items-center gap-3 mb-2">
+                <div className="w-8 h-8 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center">
+                  <AlertCircle size={16} />
+                </div>
+                <span className="font-bold text-slate-900">Закінчуються</span>
+              </div>
+              <div className="text-2xl font-extrabold text-slate-900">
+                {products.filter(p => p.stock > 0 && p.stock <= 10).length}
+              </div>
+              <div className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">Залишок менше 10 шт.</div>
+            </div>
+            
+            <div className="bg-white p-6 hover:bg-slate-50 transition-colors cursor-pointer" onClick={() => setIsProductsModalOpen(true)}>
+              <div className="flex items-center gap-3 mb-2">
+                <div className="w-8 h-8 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center">
+                  <X size={16} />
+                </div>
+                <span className="font-bold text-slate-900">Немає в наявності</span>
+              </div>
+              <div className="text-2xl font-extrabold text-slate-900">
+                {products.filter(p => p.stock === 0).length}
+              </div>
+              <div className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">Потребують поповнення</div>
+            </div>
           </div>
         </div>
       </div>
+
+      {/* Products Management Modal */}
+      <ProductsManagementModal
+        isOpen={isProductsModalOpen}
+        onClose={() => setIsProductsModalOpen(false)}
+        products={products}
+        onEdit={(product) => {
+          setEditingProduct(product);
+          setIsModalOpen(true);
+        }}
+        onDelete={handleDeleteProduct}
+        onAddNew={() => {
+          if (currentProductCount >= maxProducts) {
+            showAlert('Ліміт вичерпано', `Ліміт товарів вичерпано (${maxProducts}). Оновіть підписку, щоб додавати більше товарів.`, 'error');
+          } else {
+            setEditingProduct(undefined);
+            setIsModalOpen(true);
+          }
+        }}
+      />
 
       {/* Sales Management Modal */}
       <SalesManagementModal
