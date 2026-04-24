@@ -581,7 +581,9 @@ const SellerDashboardPage: React.FC = () => {
               <div>
                 <h3 className="text-2xl font-extrabold text-slate-900 tracking-tight">Замовлення #{selectedSaleDetails.id}</h3>
                 <p className="text-slate-500 font-medium mt-1">
-                  {selectedSaleDetails.date ? format(new Date(selectedSaleDetails.date), 'dd MMMM yyyy, HH:mm', { locale: uk }) : '—'}
+                  {selectedSaleDetails?.date && !Number.isNaN(new Date(selectedSaleDetails.date).getTime()) 
+                    ? format(new Date(selectedSaleDetails.date), 'dd MMMM yyyy, HH:mm', { locale: uk }) 
+                    : '—'}
                 </p>
               </div>
               <button 

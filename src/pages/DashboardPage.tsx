@@ -195,17 +195,18 @@ const DashboardPage: React.FC = () => {
     return null;
   }
 
-  const totalOrders = orders.length;
-  const deliveredCount = orders.filter((o) => {
-    const isAnyDelivered = o.items?.some(i => i.is_delivered);
-    return isAnyDelivered || o.status === 'delivered';
+  const validOrders = Array.isArray(orders) ? orders : [];
+  const totalOrders = validOrders.length;
+  const deliveredCount = validOrders.filter((o) => {
+    const isAnyDelivered = Array.isArray(o?.items) ? o.items.some((i: any) => i.is_delivered) : false;
+    return isAnyDelivered || o?.status === 'delivered';
   }).length;
-  const inProgressCount = orders.filter((o) => {
-    const isAnyDelivered = o.items?.some(i => i.is_delivered);
+  const inProgressCount = validOrders.filter((o) => {
+    const isAnyDelivered = Array.isArray(o?.items) ? o.items.some((i: any) => i.is_delivered) : false;
     if (isAnyDelivered) return false;
-    return ['pending', 'paid', 'shipped'].includes(o.status);
+    return ['pending', 'paid', 'shipped'].includes(o?.status);
   }).length;
-  const recentOrders = orders.slice(0, 8);
+  const recentOrders = validOrders.slice(0, 8);
 
   return (
     <div className="min-h-screen bg-slate-50/50 pt-12 pb-32 px-6 md:px-12">
@@ -364,7 +365,9 @@ const DashboardPage: React.FC = () => {
                     <div className="space-y-1">
                       <label className="text-xs font-bold text-slate-300 uppercase tracking-widest">Дата реєстрації</label>
                       <div className="text-lg font-bold text-slate-900">
-                        {user?.date_joined ? format(new Date(user.date_joined), 'dd MMMM yyyy', { locale: uk }) : '—'}
+                        {user?.date_joined && !Number.isNaN(new Date(user.date_joined).getTime()) 
+                          ? format(new Date(user.date_joined), 'dd MMMM yyyy', { locale: uk }) 
+                          : '—'}
                       </div>
                     </div>
                   </div>
@@ -391,7 +394,7 @@ const DashboardPage: React.FC = () => {
                       <div className="py-24 text-center px-6">
                         <p className="text-slate-600 font-medium">Не вдалося завантажити замовлення. Спробуйте пізніше.</p>
                       </div>
-                    ) : orders.length === 0 ? (
+                    ) : validOrders.length === 0 ? (
                       <div className="py-24 text-center px-6">
                         <Truck className="mx-auto text-slate-200 mb-4" size={48} />
                         <p className="text-lg font-bold text-slate-900 mb-1">Поки немає замовлень</p>
@@ -413,22 +416,22 @@ const DashboardPage: React.FC = () => {
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-50">
-                          {(activeTab === 'orders' ? orders : recentOrders).map((order) => {
-                            const isAnyDelivered = order.items?.some(i => i.is_delivered);
-                            const isAnyApproved = order.items?.some(i => i.is_approved);
-                            const displayStatus = isAnyDelivered ? 'delivered' : isAnyApproved && order.status !== 'delivered' ? 'shipped' : order.status;
-                            const sp = statusPresentation[displayStatus as OrderStatus];
-                            const Icon = sp.icon;
-                            const created = new Date(order.created_at);
+                          {(activeTab === 'orders' ? validOrders : recentOrders).map((order) => {
+                            const isAnyDelivered = Array.isArray(order?.items) ? order.items.some((i: any) => i.is_delivered) : false;
+                            const isAnyApproved = Array.isArray(order?.items) ? order.items.some((i: any) => i.is_approved) : false;
+                            const displayStatus = isAnyDelivered ? 'delivered' : isAnyApproved && order?.status !== 'delivered' ? 'shipped' : order?.status;
+                            const sp = statusPresentation[displayStatus as OrderStatus] || statusPresentation['pending'];
+                            const Icon = sp.icon || Clock;
+                            const created = new Date(order?.created_at);
                             const dateLabel = Number.isNaN(created.getTime())
                               ? '—'
                               : format(created, 'd MMMM yyyy, HH:mm', { locale: uk });
                             return (
-                              <tr key={order.id} className="hover:bg-slate-50/30 transition-colors cursor-pointer" onClick={() => setSelectedOrderDetails(order)}>
-                                <td className="px-8 py-6 font-bold text-slate-900">#{order.id}</td>
+                              <tr key={order?.id} className="hover:bg-slate-50/30 transition-colors cursor-pointer" onClick={() => setSelectedOrderDetails(order)}>
+                                <td className="px-8 py-6 font-bold text-slate-900">#{order?.id}</td>
                                 <td className="px-8 py-6 text-slate-500 font-medium capitalize">{dateLabel}</td>
                                 <td className="px-8 py-6 font-extrabold text-slate-900">
-                                  ${order.total_price.toFixed(2)}
+                                  ${(order?.total_price || 0).toFixed(2)}
                                 </td>
                                 <td className="px-8 py-6">
                                   <div
@@ -468,7 +471,7 @@ const DashboardPage: React.FC = () => {
                         <Loader2 className="animate-spin text-brand-600 mb-4" size={32} />
                         <p className="text-xs font-bold uppercase tracking-widest">Завантаження платежів…</p>
                       </div>
-                    ) : payments.length === 0 ? (
+                    ) : (!Array.isArray(payments) || payments.length === 0) ? (
                       <div className="flex flex-col items-center justify-center py-24 text-slate-400">
                         <CreditCard className="mb-4 opacity-50" size={48} />
                         <p className="text-lg font-bold text-slate-900 mb-1">Немає платежів</p>
@@ -486,7 +489,7 @@ const DashboardPage: React.FC = () => {
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-50">
-                          {payments.map((payment) => {
+                          {Array.isArray(payments) && payments.map((payment) => {
                             const created = new Date(payment.created_at);
                             const dateLabel = Number.isNaN(created.getTime())
                               ? '—'
@@ -662,10 +665,10 @@ const DashboardPage: React.FC = () => {
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-2xl font-extrabold text-slate-900">Замовлення #{selectedOrderDetails.id}</h3>
               {(() => {
-                const isAnyDelivered = selectedOrderDetails.items?.some(i => i.is_delivered);
-                const isAnyApproved = selectedOrderDetails.items?.some(i => i.is_approved);
+                const isAnyDelivered = Array.isArray(selectedOrderDetails.items) ? selectedOrderDetails.items.some((i: any) => i.is_delivered) : false;
+                const isAnyApproved = Array.isArray(selectedOrderDetails.items) ? selectedOrderDetails.items.some((i: any) => i.is_approved) : false;
                 const displayStatus = isAnyDelivered ? 'delivered' : isAnyApproved && selectedOrderDetails.status !== 'delivered' ? 'shipped' : selectedOrderDetails.status;
-                const sp = statusPresentation[displayStatus as OrderStatus];
+                const sp = statusPresentation[displayStatus as OrderStatus] || statusPresentation['pending'];
                 return (
                   <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-full ${sp.bg} ${sp.color} text-xs font-bold`}>
                     {sp.label}
@@ -682,8 +685,8 @@ const DashboardPage: React.FC = () => {
               </h4>
               
               {(() => {
-                const isAnyDelivered = selectedOrderDetails.items?.some(i => i.is_delivered);
-                const isAnyApproved = selectedOrderDetails.items?.some(i => i.is_approved);
+                const isAnyDelivered = Array.isArray(selectedOrderDetails.items) ? selectedOrderDetails.items.some((i: any) => i.is_delivered) : false;
+                const isAnyApproved = Array.isArray(selectedOrderDetails.items) ? selectedOrderDetails.items.some((i: any) => i.is_approved) : false;
                 const displayStatus = isAnyDelivered ? 'delivered' : isAnyApproved && selectedOrderDetails.status !== 'delivered' ? 'shipped' : selectedOrderDetails.status;
                 
                 return (
@@ -704,7 +707,11 @@ const DashboardPage: React.FC = () => {
                         </div>
                         <div>
                           <p className="text-sm font-bold text-slate-900">Замовлення оформлено</p>
-                          <p className="text-xs text-slate-500">{format(new Date(selectedOrderDetails.created_at), 'dd MMM yyyy, HH:mm', { locale: uk })}</p>
+                          <p className="text-xs text-slate-500">
+                            {selectedOrderDetails?.created_at && !Number.isNaN(new Date(selectedOrderDetails.created_at).getTime()) 
+                              ? format(new Date(selectedOrderDetails.created_at), 'dd MMM yyyy, HH:mm', { locale: uk }) 
+                              : '—'}
+                          </p>
                         </div>
                       </div>
                       
@@ -789,7 +796,7 @@ const DashboardPage: React.FC = () => {
               <div>
                 <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Товари</h4>
                 <div className="space-y-3">
-                  {selectedOrderDetails.items?.map((item: any, idx: number) => (
+                  {Array.isArray(selectedOrderDetails.items) && selectedOrderDetails.items.map((item: any, idx: number) => (
                     <OrderProductItem 
                       key={idx} 
                       productId={item.product_id} 
@@ -853,7 +860,9 @@ const DashboardPage: React.FC = () => {
                 <div className="flex justify-between items-center mb-3">
                   <span className="text-sm font-medium text-slate-500">Дата та час</span>
                   <span className="font-bold text-slate-900 capitalize">
-                    {selectedPaymentDetails.created_at ? format(new Date(selectedPaymentDetails.created_at), 'd MMMM yyyy, HH:mm', { locale: uk }) : '—'}
+                    {selectedPaymentDetails?.created_at && !Number.isNaN(new Date(selectedPaymentDetails.created_at).getTime()) 
+                      ? format(new Date(selectedPaymentDetails.created_at), 'd MMMM yyyy, HH:mm', { locale: uk }) 
+                      : '—'}
                   </span>
                 </div>
                 <div className="flex justify-between items-center">
