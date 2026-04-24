@@ -1,14 +1,17 @@
 import React from 'react';
-import { Package } from 'lucide-react';
+import { Package, CheckCircle2, Clock } from 'lucide-react';
 import { useGetProductQuery } from '../api/productApiSlice';
 
 interface OrderProductItemProps {
   productId: number;
   quantity: number;
   price: number;
+  isApproved?: boolean;
+  isDelivered?: boolean;
+  orderStatus?: string;
 }
 
-const OrderProductItem: React.FC<OrderProductItemProps> = ({ productId, quantity, price }) => {
+const OrderProductItem: React.FC<OrderProductItemProps> = ({ productId, quantity, price, isApproved, isDelivered, orderStatus }) => {
   const { data: product, isLoading } = useGetProductQuery(productId);
 
   return (
@@ -34,9 +37,22 @@ const OrderProductItem: React.FC<OrderProductItemProps> = ({ productId, quantity
           ) : (
             <p className="text-sm font-bold text-slate-900 line-clamp-1">{product?.name || `Товар #${productId}`}</p>
           )}
-          <p className="text-xs font-medium text-slate-500">
-            {quantity} шт. × ${price.toFixed(2)}
-          </p>
+          <div className="flex items-center gap-2 mt-1">
+            <p className="text-xs font-medium text-slate-500">
+              {quantity} шт. × ${price.toFixed(2)}
+            </p>
+            {isDelivered !== undefined && isApproved !== undefined && (
+              <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[9px] font-bold uppercase tracking-wider ${
+                isDelivered ? 'bg-emerald-100 text-emerald-700' : 
+                isApproved ? 'bg-indigo-100 text-indigo-700' : 
+                orderStatus === 'pending' ? 'bg-amber-100 text-amber-700' :
+                'bg-sky-100 text-sky-700'
+              }`}>
+                {isDelivered ? <CheckCircle2 size={10} /> : isApproved ? <Package size={10} /> : <Clock size={10} />}
+                {isDelivered ? 'Доставлено' : isApproved ? 'Комплектується' : orderStatus === 'pending' ? 'Очікує оплати' : 'Оплачено'}
+              </span>
+            )}
+          </div>
         </div>
       </div>
       <div className="font-extrabold text-slate-900 bg-white px-3 py-1.5 rounded-lg border border-slate-100 shadow-sm">

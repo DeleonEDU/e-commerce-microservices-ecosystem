@@ -70,14 +70,20 @@ export const orderApiSlice = apiSlice.injectEndpoints({
         url: `/orders/sellers/${sellerId}/items/${itemId}/approve`,
         method: 'POST',
       }),
-      invalidatesTags: (_result, _error, { sellerId }) => [{ type: 'SellerAnalytics', id: sellerId }],
+      invalidatesTags: (_result, _error, { sellerId }) => [
+        { type: 'SellerAnalytics', id: sellerId },
+        { type: 'Order' }
+      ],
     }),
     deliverOrderItem: builder.mutation<{status: string}, {sellerId: number, itemId: number}>({
       query: ({sellerId, itemId}) => ({
         url: `/orders/sellers/${sellerId}/items/${itemId}/deliver`,
         method: 'POST',
       }),
-      invalidatesTags: (_result, _error, { sellerId }) => [{ type: 'SellerAnalytics', id: sellerId }],
+      invalidatesTags: (_result, _error, { sellerId }) => [
+        { type: 'SellerAnalytics', id: sellerId },
+        { type: 'Order' }
+      ],
     }),
     checkUserBoughtProduct: builder.query<{has_bought: boolean}, {userId: number; productId: number}>({
       query: ({userId, productId}) => `/orders/users/${userId}/has_bought/${productId}`,

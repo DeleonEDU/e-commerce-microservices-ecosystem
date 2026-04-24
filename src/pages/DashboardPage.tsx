@@ -762,6 +762,9 @@ const DashboardPage: React.FC = () => {
                       productId={item.product_id} 
                       quantity={item.quantity} 
                       price={item.price} 
+                      isApproved={item.is_approved}
+                      isDelivered={item.is_delivered}
+                      orderStatus={selectedOrderDetails.status}
                     />
                   ))}
                 </div>

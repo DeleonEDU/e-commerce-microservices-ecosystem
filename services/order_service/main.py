@@ -111,7 +111,7 @@ def check_user_bought_product(user_id: int, product_id: int, db: Session = Depen
     has_bought = db.query(models.OrderItem).join(models.Order).filter(
         models.Order.user_id == user_id,
         models.OrderItem.product_id == product_id,
-        models.Order.status.in_([models.OrderStatus.PAID, models.OrderStatus.SHIPPED])
+        models.Order.status.in_([models.OrderStatus.PAID, models.OrderStatus.SHIPPED, models.OrderStatus.DELIVERED])
     ).first() is not None
     return {"has_bought": has_bought}
 
