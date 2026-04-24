@@ -18,7 +18,7 @@ import { selectCartTotal, clearCart } from '../features/cart/cartSlice';
 import Button from '../components/ui/Button';
 import AlertModal from '../components/ui/AlertModal';
 import { useCreateOrderMutation } from '../api/orderApiSlice';
-import { useCreatePaymentIntentMutation } from '../api/paymentApiSlice';
+import { useCreatePaymentIntentMutation, useConfirmPaymentMutation } from '../api/paymentApiSlice';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js';
 
@@ -29,7 +29,7 @@ type CheckoutStep = 'shipping' | 'payment' | 'confirmation' | 'stripe' | 'succes
 
 const StripeCheckoutForm: React.FC<{
   clientSecret: string;
-  onSuccess: () => void;
+  onSuccess: (paymentIntentId: string) => void;
   onCancel: () => void;
   totalAmount: number;
 }> = ({ clientSecret, onSuccess, onCancel, totalAmount }) => {
@@ -50,14 +50,17 @@ const StripeCheckoutForm: React.FC<{
 
     const { error, paymentIntent } = await stripe.confirmPayment({
       elements,
-      redirect: 'if_required', // Avoid automatic redirect so we can show success step
+      confirmParams: {
+        return_url: window.location.origin + '/dashboard',
+      },
+      redirect: 'if_required', // Avoid automatic redirect so we can show success step locally if possible
     });
 
     if (error) {
       setErrorMessage(error.message || 'Виникла помилка під час оплати.');
       setIsProcessing(false);
     } else if (paymentIntent && paymentIntent.status === 'succeeded') {
-      onSuccess();
+      onSuccess(paymentIntent.id);
     } else {
       setErrorMessage('Статус платежу: ' + (paymentIntent?.status || 'невідомо'));
       setIsProcessing(false);
@@ -94,6 +97,7 @@ const CheckoutPage: React.FC = () => {
   const navigate = useNavigate();
   const [createOrder, { isLoading: isPlacingOrder }] = useCreateOrderMutation();
   const [createPaymentIntent] = useCreatePaymentIntentMutation();
+  const [confirmPayment] = useConfirmPaymentMutation();
 
   const [step, setStep] = useState<CheckoutStep>('shipping');
   const [placedOrderId, setPlacedOrderId] = useState<number | null>(null);
@@ -158,7 +162,12 @@ const CheckoutPage: React.FC = () => {
     }
   };
 
-  const handleStripeSuccess = () => {
+  const handleStripeSuccess = async (paymentIntentId: string) => {
+    try {
+      await confirmPayment({ payment_intent_id: paymentIntentId }).unwrap();
+    } catch (e) {
+      console.error('Failed to confirm payment:', e);
+    }
     setStep('success');
     dispatch(clearCart());
   };
@@ -228,7 +237,7 @@ const CheckoutPage: React.FC = () => {
                     <input 
                       type="text" 
                       placeholder="Олександр Петренко"
-                      className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:bg-white focus:ring-4 focus:ring-brand-500/10 focus:border-brand-500 outline-none transition-all font-medium"
+                      className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:ring-4 focus:ring-brand-500/20 focus:border-brand-500 outline-none transition-all font-medium shadow-sm hover:border-slate-300"
                       value={formData.fullName}
                       onChange={(e) => setFormData({...formData, fullName: e.target.value})}
                     />
@@ -238,7 +247,7 @@ const CheckoutPage: React.FC = () => {
                     <input 
                       type="text" 
                       placeholder="вул. Хрещатик, 1, кв. 10"
-                      className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:bg-white focus:ring-4 focus:ring-brand-500/10 focus:border-brand-500 outline-none transition-all font-medium"
+                      className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:ring-4 focus:ring-brand-500/20 focus:border-brand-500 outline-none transition-all font-medium shadow-sm hover:border-slate-300"
                       value={formData.address}
                       onChange={(e) => setFormData({...formData, address: e.target.value})}
                     />
@@ -248,7 +257,7 @@ const CheckoutPage: React.FC = () => {
                     <input 
                       type="text" 
                       placeholder="Київ"
-                      className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:bg-white focus:ring-4 focus:ring-brand-500/10 focus:border-brand-500 outline-none transition-all font-medium"
+                      className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:ring-4 focus:ring-brand-500/20 focus:border-brand-500 outline-none transition-all font-medium shadow-sm hover:border-slate-300"
                       value={formData.city}
                       onChange={(e) => setFormData({...formData, city: e.target.value})}
                     />
@@ -258,7 +267,7 @@ const CheckoutPage: React.FC = () => {
                     <input 
                       type="text" 
                       placeholder="01001"
-                      className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:bg-white focus:ring-4 focus:ring-brand-500/10 focus:border-brand-500 outline-none transition-all font-medium"
+                      className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:ring-4 focus:ring-brand-500/20 focus:border-brand-500 outline-none transition-all font-medium shadow-sm hover:border-slate-300"
                       value={formData.zipCode}
                       onChange={(e) => setFormData({...formData, zipCode: e.target.value})}
                     />

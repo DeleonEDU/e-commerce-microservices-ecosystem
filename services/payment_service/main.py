@@ -4,7 +4,7 @@ from typing import List
 
 import stripe
 from dotenv import load_dotenv
-from fastapi import Depends, FastAPI, Header, HTTPException, Request
+from fastapi import Depends, FastAPI, Header, HTTPException, Request, Body
 from sqlalchemy.orm import Session
 
 import models
@@ -78,6 +78,31 @@ def create_payment_intent_legacy(
     return _create_payment_intent(payment_data, db)
 
 
+@app.post("/subscription-intents", response_model=schemas.PaymentResponse)
+def create_subscription_intent(
+    sub_data: schemas.SubscriptionIntentCreate,
+    db: Session = Depends(get_db),
+):
+    try:
+        intent = stripe.PaymentIntent.create(
+            amount=int(sub_data.amount * 100),
+            currency="usd",
+            metadata={
+                "type": "subscription",
+                "user_id": str(sub_data.user_id),
+                "tier": sub_data.tier.value,
+            },
+        )
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+
+    return schemas.PaymentResponse(
+        id=0, # We don't store it in payments table, we handle it via webhook
+        client_secret=intent.client_secret or "",
+        status="pending",
+    )
+
+
 @app.get("/users/{user_id}/payments", response_model=List[schemas.PaymentRead])
 def list_user_payments(user_id: int, db: Session = Depends(get_db)):
     return (
@@ -147,6 +172,45 @@ def get_user_subscription(user_id: int, db: Session = Depends(get_db)):
     return sub
 
 
+@app.post("/payments/confirm")
+def confirm_payment(
+    payment_intent_id: str = Body(..., embed=True),
+    db: Session = Depends(get_db),
+):
+    try:
+        intent = stripe.PaymentIntent.retrieve(payment_intent_id)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+
+    if intent.status == "succeeded":
+        # Check if it's a subscription payment
+        metadata = intent.get("metadata", {})
+        if metadata.get("type") == "subscription":
+            user_id = int(metadata.get("user_id"))
+            tier_str = metadata.get("tier")
+            try:
+                tier = models.SubscriptionTier(tier_str)
+                _set_subscription_tier(user_id, tier, db)
+            except ValueError:
+                pass
+            return {"status": "success"}
+
+        payment = (
+            db.query(models.Payment)
+            .filter(models.Payment.stripe_payment_intent_id == intent.id)
+            .first()
+        )
+        if payment and payment.status != models.PaymentStatus.COMPLETED:
+            payment.status = models.PaymentStatus.COMPLETED
+            db.commit()
+            publish_message(
+                "order_payments",
+                {"order_id": payment.order_id, "status": "paid"},
+            )
+            
+    return {"status": "success"}
+
+
 @app.post("/webhooks/stripe")
 async def stripe_webhook(
     request: Request,
@@ -164,6 +228,19 @@ async def stripe_webhook(
 
     if event["type"] == "payment_intent.succeeded":
         intent = event["data"]["object"]
+        
+        # Check if it's a subscription payment
+        metadata = intent.get("metadata", {})
+        if metadata.get("type") == "subscription":
+            user_id = int(metadata.get("user_id"))
+            tier_str = metadata.get("tier")
+            try:
+                tier = models.SubscriptionTier(tier_str)
+                _set_subscription_tier(user_id, tier, db)
+            except ValueError:
+                pass
+            return {"status": "success"}
+
         payment = (
             db.query(models.Payment)
             .filter(models.Payment.stripe_payment_intent_id == intent["id"])
