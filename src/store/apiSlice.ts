@@ -3,8 +3,8 @@ import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
 // У dev (Vite) запити йдуть на той самий origin → proxy у vite.config.ts на gateway.
 // У production / preview — повний URL на шлюз (порт 80 на хості).
 // Перевизначення: VITE_API_BASE=https://api.example.com (без завершального слеша)
-const rawBase = import.meta.env.VITE_API_BASE?.replace(/\/$/, '');
-const API_URL = rawBase ?? (import.meta.env.DEV ? '/api' : 'http://localhost/api');
+const rawBase = (import.meta as any).env.VITE_API_BASE?.replace(/\/$/, '');
+const API_URL = rawBase ?? ((import.meta as any).env.DEV ? '/api' : 'http://localhost/api');
 
 export const apiSlice = createApi({
   reducerPath: 'api',
@@ -19,6 +19,6 @@ export const apiSlice = createApi({
       return headers;
     },
   }),
-  tagTypes: ['Product', 'Order', 'User', 'Cart', 'Review', 'Subscription'],
+  tagTypes: ['Product', 'Order', 'User', 'Cart', 'Review', 'Subscription', 'SellerAnalytics'],
   endpoints: (builder) => ({}),
 });
