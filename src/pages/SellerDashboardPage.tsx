@@ -12,8 +12,15 @@ import {
   ExternalLink, 
   Loader2,
   Search,
-  AlertCircle
+  AlertCircle,
+  Star,
+  CheckCircle2,
+  Clock,
+  Map,
+  X
 } from 'lucide-react';
+import { format } from 'date-fns';
+import { uk } from 'date-fns/locale';
 import { RootState } from '../store/store';
 import { 
   useGetSellerProductsQuery, 
@@ -21,13 +28,17 @@ import {
   useUpdateProductMutation, 
   useDeleteProductMutation 
 } from '../api/productApiSlice';
-import { useGetSellerAnalyticsQuery, useApproveOrderItemMutation } from '../api/orderApiSlice';
+import { useGetSellerAnalyticsQuery, useApproveOrderItemMutation, useDeliverOrderItemMutation } from '../api/orderApiSlice';
 import { useGetSubscriptionQuery, useUpgradeSubscriptionMutation } from '../api/subscriptionApiSlice';
+import { useConfirmPaymentMutation } from '../api/paymentApiSlice';
 import Button from '../components/ui/Button';
 import ProductFormModal from '../components/ProductFormModal';
 import { Product } from '../types/product';
 import PaymentModal from '../components/PaymentModal';
 import AlertModal, { AlertType } from '../components/ui/AlertModal';
+
+import TableRowProduct from '../components/TableRowProduct';
+import SellerAnalyticsCharts from '../components/SellerAnalyticsCharts';
 
 const SellerDashboardPage: React.FC = () => {
   const { user, isAuthenticated } = useSelector((state: RootState) => state.auth);
@@ -67,6 +78,7 @@ const SellerDashboardPage: React.FC = () => {
     skip: !user?.id,
   });
   const [approveOrderItem] = useApproveOrderItemMutation();
+  const [deliverOrderItem] = useDeliverOrderItemMutation();
 
   const [selectedSaleDetails, setSelectedSaleDetails] = useState<any>(null);
 
@@ -74,33 +86,55 @@ const SellerDashboardPage: React.FC = () => {
     if (!user?.id) return;
     try {
       await approveOrderItem({ sellerId: user.id, itemId }).unwrap();
-      showAlert('Успіх', 'Продаж успішно підтверджено', 'success');
+      showAlert('Успіх', 'Продаж успішно підтверджено (комплектується)', 'success');
     } catch (err) {
       showAlert('Помилка', 'Не вдалося підтвердити продаж', 'error');
     }
   };
 
+  const handleDeliverSale = async (itemId: number) => {
+    if (!user?.id) return;
+    try {
+      await deliverOrderItem({ sellerId: user.id, itemId }).unwrap();
+      showAlert('Успіх', 'Товар успішно відмічено як доставлений', 'success');
+    } catch (err) {
+      showAlert('Помилка', 'Не вдалося відмітити як доставлений', 'error');
+    }
+  };
+
   const { data: subscription } = useGetSubscriptionQuery(user?.id ?? 0, { skip: !user?.id });
   const [upgradeSubscription, { isLoading: isUpgrading }] = useUpgradeSubscriptionMutation();
+  const [confirmPayment] = useConfirmPaymentMutation();
   
   const isPremium = subscription?.tier === 'pro' || subscription?.tier === 'vip';
   const isPlusOrBetter = subscription?.tier === 'plus' || isPremium;
 
   const handleUpgradeClick = (tier: 'plus' | 'pro' | 'vip') => {
-    const prices = { plus: 9.99, pro: 29.99, vip: 99.99 };
+    const prices = { plus: 0, pro: 29.99, vip: 99.99 };
+    
+    if (tier === 'plus') {
+      // Plus is free, upgrade directly
+      upgradeSubscription({ userId: user?.id ?? 0, tier: 'plus' })
+        .unwrap()
+        .then(() => showAlert('Успіх', 'Ви успішно активували план PLUS!', 'success'))
+        .catch(() => showAlert('Помилка', 'Помилка при активації підписки.', 'error'));
+      return;
+    }
+
     setSelectedTier(tier);
     setSelectedAmount(prices[tier]);
     setIsPaymentModalOpen(true);
   };
 
-  const handlePaymentSuccess = async () => {
+  const handlePaymentSuccess = async (paymentIntentId: string) => {
     try {
-      await upgradeSubscription({ userId: user?.id ?? 0, tier: selectedTier }).unwrap();
+      await confirmPayment({ payment_intent_id: paymentIntentId }).unwrap();
       setIsPaymentModalOpen(false);
-      showAlert('Успіх', `Ви успішно активували ${selectedTier.toUpperCase()} підписку!`, 'success');
-    } catch (err) {
-      console.error(err);
-      showAlert('Помилка', 'Помилка при активації підписки.', 'error');
+      showAlert('Успіх', `Оплату підписки ${selectedTier.toUpperCase()} прийнято! Вона активована.`, 'success');
+    } catch (e) {
+      console.error('Failed to confirm payment:', e);
+      setIsPaymentModalOpen(false);
+      showAlert('Увага', `Оплату прийнято, але виникла помилка при активації. Будь ласка, зачекайте.`, 'warning');
     }
   };
 
@@ -212,45 +246,105 @@ const SellerDashboardPage: React.FC = () => {
 
         {/* Subscription Tiers (if not fully maxed out) */}
         {currentTier !== 'vip' && (
-          <div className="bg-gradient-to-r from-slate-900 to-indigo-950 rounded-[32px] p-8 text-white shadow-soft mb-12 flex flex-col lg:flex-row items-center justify-between gap-8 border border-slate-800">
-            <div className="flex-1">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/20 text-indigo-200 border border-indigo-500/30 text-[10px] font-bold uppercase tracking-widest mb-4">
-                Підвищення плану
-              </div>
-              <h3 className="text-3xl font-extrabold mb-3">Розширте можливості магазину</h3>
-              <p className="text-slate-300 mb-6 text-sm max-w-xl leading-relaxed">
-                Ваш поточний план <span className="text-white font-bold">{currentTier.toUpperCase()}</span> дозволяє додати до <span className="text-white font-bold">{maxProducts}</span> товарів. 
-                Оберіть преміум-підписку для збільшення лімітів, розширеної аналітики та пріоритетного розміщення у каталозі.
-              </p>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
-                <div className="p-4 rounded-2xl bg-white/5 border border-white/10">
-                  <div className="font-bold text-white mb-1">Plus (Безкоштовно)</div>
-                  <div className="text-slate-400 text-xs">До 100 товарів, базова підтримка</div>
-                </div>
-                <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20">
-                  <div className="font-bold text-amber-400 mb-1">Pro ($29.99/міс)</div>
-                  <div className="text-slate-400 text-xs">До 1000 товарів, Premium бейдж, аналітика</div>
-                </div>
-                <div className="p-4 rounded-2xl bg-indigo-500/10 border border-indigo-500/20">
-                  <div className="font-bold text-indigo-400 mb-1">VIP ($99.99/міс)</div>
-                  <div className="text-slate-400 text-xs">Безліміт товарів, топ-розміщення, менеджер</div>
-                </div>
+          <div className="mb-12">
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h3 className="text-2xl font-extrabold text-slate-900 tracking-tight">Оберіть свій план</h3>
+                <p className="text-slate-500 font-medium mt-1">
+                  Ваш поточний план: <span className="font-bold text-brand-600 uppercase">{currentTier}</span> ({maxProducts} товарів)
+                </p>
               </div>
             </div>
-            <div className="flex flex-col gap-3 w-full lg:w-auto shrink-0">
-              {currentTier === 'free' && (
-                <Button onClick={() => handleUpgradeClick('plus')} disabled={isUpgrading} className="w-full bg-white text-slate-900 hover:bg-slate-100">
-                  Активувати PLUS (Безкоштовно)
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {/* Plus Plan */}
+              <div 
+                className={`relative bg-white rounded-[32px] p-8 border-2 transition-all duration-300 cursor-pointer group hover:-translate-y-1 ${currentTier === 'free' ? 'border-slate-200 hover:border-brand-300 hover:shadow-xl' : 'border-slate-100 opacity-60 pointer-events-none'}`}
+                onClick={() => currentTier === 'free' && handleUpgradeClick('plus')}
+              >
+                <div className="mb-6">
+                  <div className="w-12 h-12 bg-slate-50 rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                    <Package size={24} className="text-slate-600" />
+                  </div>
+                  <h4 className="text-xl font-extrabold text-slate-900">Plus</h4>
+                  <div className="flex items-baseline gap-1 mt-2">
+                    <span className="text-3xl font-extrabold text-slate-900">Безкоштовно</span>
+                  </div>
+                </div>
+                <ul className="space-y-3 mb-8 text-sm font-medium text-slate-600">
+                  <li className="flex items-center gap-2"><CheckCircle2 size={16} className="text-emerald-500" /> До 100 товарів</li>
+                  <li className="flex items-center gap-2"><CheckCircle2 size={16} className="text-emerald-500" /> Базова підтримка</li>
+                  <li className="flex items-center gap-2"><CheckCircle2 size={16} className="text-emerald-500" /> Стандартна аналітика</li>
+                </ul>
+                <Button 
+                  variant="outline" 
+                  className="w-full" 
+                  disabled={currentTier !== 'free' || isUpgrading}
+                >
+                  {currentTier === 'free' ? 'Активувати Plus' : 'Поточний або нижчий план'}
                 </Button>
-              )}
-              {(currentTier === 'free' || currentTier === 'plus') && (
-                <Button onClick={() => handleUpgradeClick('pro')} className="w-full bg-amber-500 hover:bg-amber-600 text-white border-none shadow-[0_0_20px_rgba(245,158,11,0.3)]" disabled={isUpgrading}>
-                  Оновити до PRO
+              </div>
+
+              {/* Pro Plan */}
+              <div 
+                className={`relative bg-gradient-to-b from-amber-50 to-white rounded-[32px] p-8 border-2 transition-all duration-300 cursor-pointer group hover:-translate-y-1 ${(currentTier === 'free' || currentTier === 'plus') ? 'border-amber-200 hover:border-amber-400 hover:shadow-xl hover:shadow-amber-500/10' : 'border-slate-100 opacity-60 pointer-events-none'}`}
+                onClick={() => (currentTier === 'free' || currentTier === 'plus') && handleUpgradeClick('pro')}
+              >
+                <div className="absolute top-0 right-8 -translate-y-1/2">
+                  <span className="bg-amber-500 text-white text-[10px] font-extrabold uppercase tracking-widest px-3 py-1 rounded-full shadow-sm">Популярний</span>
+                </div>
+                <div className="mb-6">
+                  <div className="w-12 h-12 bg-amber-100 rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                    <Star size={24} className="text-amber-600" />
+                  </div>
+                  <h4 className="text-xl font-extrabold text-slate-900">Pro</h4>
+                  <div className="flex items-baseline gap-1 mt-2">
+                    <span className="text-3xl font-extrabold text-slate-900">$29.99</span>
+                    <span className="text-slate-500 font-medium">/міс</span>
+                  </div>
+                </div>
+                <ul className="space-y-3 mb-8 text-sm font-medium text-slate-600">
+                  <li className="flex items-center gap-2"><CheckCircle2 size={16} className="text-amber-500" /> До 1000 товарів</li>
+                  <li className="flex items-center gap-2"><CheckCircle2 size={16} className="text-amber-500" /> Premium бейдж</li>
+                  <li className="flex items-center gap-2"><CheckCircle2 size={16} className="text-amber-500" /> Розширена аналітика</li>
+                  <li className="flex items-center gap-2"><CheckCircle2 size={16} className="text-amber-500" /> Пріоритетна підтримка</li>
+                </ul>
+                <Button 
+                  className="w-full bg-amber-500 hover:bg-amber-600 text-white border-none shadow-[0_0_20px_rgba(245,158,11,0.3)]" 
+                  disabled={!(currentTier === 'free' || currentTier === 'plus') || isUpgrading}
+                >
+                  {(currentTier === 'free' || currentTier === 'plus') ? 'Оновити до Pro' : 'Поточний або нижчий план'}
                 </Button>
-              )}
-              <Button onClick={() => handleUpgradeClick('vip')} className="w-full bg-indigo-600 hover:bg-indigo-500 text-white border-none shadow-[0_0_20px_rgba(79,70,229,0.3)]" disabled={isUpgrading}>
-                 Оновити до VIP
-              </Button>
+              </div>
+
+              {/* VIP Plan */}
+              <div 
+                className="relative bg-gradient-to-b from-indigo-900 to-slate-900 rounded-[32px] p-8 border-2 border-indigo-500/30 transition-all duration-300 cursor-pointer group hover:-translate-y-1 hover:border-indigo-400 hover:shadow-xl hover:shadow-indigo-500/20"
+                onClick={() => handleUpgradeClick('vip')}
+              >
+                <div className="mb-6">
+                  <div className="w-12 h-12 bg-indigo-500/20 rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform border border-indigo-500/30">
+                    <TrendingUp size={24} className="text-indigo-400" />
+                  </div>
+                  <h4 className="text-xl font-extrabold text-white">VIP</h4>
+                  <div className="flex items-baseline gap-1 mt-2">
+                    <span className="text-3xl font-extrabold text-white">$99.99</span>
+                    <span className="text-indigo-200 font-medium">/міс</span>
+                  </div>
+                </div>
+                <ul className="space-y-3 mb-8 text-sm font-medium text-indigo-100">
+                  <li className="flex items-center gap-2"><CheckCircle2 size={16} className="text-indigo-400" /> Безліміт товарів</li>
+                  <li className="flex items-center gap-2"><CheckCircle2 size={16} className="text-indigo-400" /> Топ-розміщення в каталозі</li>
+                  <li className="flex items-center gap-2"><CheckCircle2 size={16} className="text-indigo-400" /> Персональний менеджер</li>
+                  <li className="flex items-center gap-2"><CheckCircle2 size={16} className="text-indigo-400" /> API доступ</li>
+                </ul>
+                <Button 
+                  className="w-full bg-indigo-500 hover:bg-indigo-400 text-white border-none shadow-[0_0_20px_rgba(99,102,241,0.4)]" 
+                  disabled={isUpgrading}
+                >
+                  Оновити до VIP
+                </Button>
+              </div>
             </div>
           </div>
         )}
@@ -298,6 +392,13 @@ const SellerDashboardPage: React.FC = () => {
           </div>
         </div>
 
+        {/* Analytics Charts */}
+        <SellerAnalyticsCharts 
+          data={analyticsData} 
+          tier={currentTier} 
+          onUpgrade={handleUpgradeClick} 
+        />
+
         {/* Recent Sales Section */}
         <div className="bg-white rounded-[40px] border border-slate-100 shadow-soft overflow-hidden mb-12">
           <div className="p-8 border-b border-slate-50 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -308,24 +409,26 @@ const SellerDashboardPage: React.FC = () => {
               <thead>
                 <tr className="bg-slate-50/50">
                   <th className="px-8 py-5 text-[10px] font-bold text-slate-400 uppercase tracking-widest">ID Замовлення</th>
-                  <th className="px-8 py-5 text-[10px] font-bold text-slate-400 uppercase tracking-widest">ID Товару</th>
+                  <th className="px-8 py-5 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Товар</th>
                   <th className="px-8 py-5 text-[10px] font-bold text-slate-400 uppercase tracking-widest">К-сть</th>
                   <th className="px-8 py-5 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Сума</th>
                   <th className="px-8 py-5 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Статус</th>
+                  <th className="px-8 py-5 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Оплата/Доставка</th>
+                  <th className="px-8 py-5 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Дата</th>
                   <th className="px-8 py-5 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-right">Дія</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
                 {isLoadingAnalytics ? (
                   <tr>
-                    <td colSpan={6} className="px-8 py-12 text-center text-slate-400">
+                    <td colSpan={8} className="px-8 py-12 text-center text-slate-400">
                       <Loader2 className="animate-spin mx-auto mb-2" size={24} />
                       <p className="text-xs font-bold uppercase">Завантаження...</p>
                     </td>
                   </tr>
                 ) : !analyticsData?.recent_sales?.length ? (
                   <tr>
-                    <td colSpan={6} className="px-8 py-12 text-center text-slate-400">
+                    <td colSpan={8} className="px-8 py-12 text-center text-slate-400">
                       <p className="font-medium">Немає недавніх продажів</p>
                     </td>
                   </tr>
@@ -333,22 +436,59 @@ const SellerDashboardPage: React.FC = () => {
                   analyticsData.recent_sales.map((sale: any) => (
                     <tr key={sale.id} className="hover:bg-slate-50/50 transition-colors cursor-pointer" onClick={() => setSelectedSaleDetails(sale)}>
                       <td className="px-8 py-5 font-bold text-slate-900">#{sale.id}</td>
-                      <td className="px-8 py-5 font-medium text-slate-600">Товар #{sale.product_id}</td>
+                      <td className="px-8 py-5">
+                        <TableRowProduct productId={sale.product_id} />
+                      </td>
                       <td className="px-8 py-5 font-bold text-slate-900">{sale.quantity} шт.</td>
                       <td className="px-8 py-5 font-extrabold text-slate-900">${(sale.price * sale.quantity).toFixed(2)}</td>
                       <td className="px-8 py-5">
-                        <span className={`px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider ${sale.is_approved ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'}`}>
-                          {sale.is_approved ? 'Підтверджено' : 'Очікує'}
+                        <span className={`px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider ${sale.is_delivered ? 'bg-emerald-50 text-emerald-600' : sale.is_approved ? 'bg-indigo-50 text-indigo-600' : 'bg-amber-50 text-amber-600'}`}>
+                          {sale.is_delivered ? 'Доставлено' : sale.is_approved ? 'Комплектується' : 'Очікує'}
                         </span>
                       </td>
+                      <td className="px-8 py-5">
+                        {sale.order?.status === 'paid' ? (
+                          <span className="px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider bg-sky-50 text-sky-600 flex items-center w-max gap-1">
+                            <CheckCircle2 size={12} />
+                            Оплачено
+                          </span>
+                        ) : sale.order?.status === 'shipped' ? (
+                          <span className="px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider bg-indigo-50 text-indigo-600 flex items-center w-max gap-1">
+                            <CheckCircle2 size={12} />
+                            Комплектується
+                          </span>
+                        ) : sale.order?.status === 'delivered' ? (
+                          <span className="px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider bg-emerald-50 text-emerald-600 flex items-center w-max gap-1">
+                            <CheckCircle2 size={12} />
+                            Доставлено
+                          </span>
+                        ) : (
+                          <span className="px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider bg-amber-50 text-amber-600 flex items-center w-max gap-1">
+                            <Clock size={12} />
+                            В обробці
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-8 py-5 text-slate-400 font-medium">
+                        {sale.date ? format(new Date(sale.date), 'dd MMM yyyy, HH:mm', { locale: uk }) : '—'}
+                      </td>
                       <td className="px-8 py-5 text-right">
-                        {!sale.is_approved && (
+                        {!sale.is_approved ? (
                           <Button size="sm" onClick={(e) => {
                             e.stopPropagation();
                             handleApproveSale(sale.id);
                           }}>
                             Підтвердити
                           </Button>
+                        ) : !sale.is_delivered ? (
+                          <Button size="sm" variant="outline" onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeliverSale(sale.id);
+                          }}>
+                            Доставити
+                          </Button>
+                        ) : (
+                          <span className="text-emerald-600 font-bold text-sm">Доставлено</span>
                         )}
                       </td>
                     </tr>
@@ -368,7 +508,7 @@ const SellerDashboardPage: React.FC = () => {
               <input 
                 type="text" 
                 placeholder="Пошук по товарах..."
-                className="w-full pl-12 pr-4 py-3 bg-slate-50 border border-slate-100 rounded-2xl focus:bg-white focus:ring-4 focus:ring-brand-500/10 focus:border-brand-500 outline-none transition-all font-medium text-sm"
+                className="w-full pl-12 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:ring-4 focus:ring-brand-500/20 focus:border-brand-500 outline-none transition-all font-medium text-sm shadow-sm hover:border-slate-300"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
@@ -516,43 +656,100 @@ const SellerDashboardPage: React.FC = () => {
       {selectedSaleDetails && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => setSelectedSaleDetails(null)} />
-          <div className="relative bg-white rounded-[32px] p-8 max-w-md w-full shadow-2xl animate-fade-in text-left">
-            <h3 className="text-2xl font-extrabold text-slate-900 mb-4">Деталі продажу #{selectedSaleDetails.id}</h3>
+          <div className="relative bg-white rounded-[40px] p-8 max-w-lg w-full shadow-2xl animate-fade-in text-left border border-slate-100">
+            <div className="flex items-center justify-between mb-8">
+              <div>
+                <h3 className="text-2xl font-extrabold text-slate-900 tracking-tight">Замовлення #{selectedSaleDetails.id}</h3>
+                <p className="text-slate-500 font-medium mt-1">
+                  {selectedSaleDetails.date ? format(new Date(selectedSaleDetails.date), 'dd MMMM yyyy, HH:mm', { locale: uk }) : '—'}
+                </p>
+              </div>
+              <button 
+                onClick={() => setSelectedSaleDetails(null)}
+                className="w-10 h-10 flex items-center justify-center rounded-full bg-slate-50 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors"
+              >
+                <X size={20} />
+              </button>
+            </div>
             
-            <div className="space-y-4 mb-6">
-              <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Інформація про товар</h4>
-                <div className="flex justify-between">
-                  <span className="font-medium text-slate-600">ID Товару:</span>
-                  <span className="font-bold text-slate-900">{selectedSaleDetails.product_id}</span>
+            <div className="space-y-6 mb-8 max-h-[60vh] overflow-y-auto pr-2 no-scrollbar">
+              {/* Product Info */}
+              <div className="p-5 bg-slate-50 rounded-[24px] border border-slate-100/60 shadow-sm">
+                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                  <Package size={14} /> Товар
+                </h4>
+                <div className="mb-4 bg-white p-3 rounded-2xl border border-slate-100 shadow-sm">
+                  <TableRowProduct productId={selectedSaleDetails.product_id} />
                 </div>
-                <div className="flex justify-between">
-                  <span className="font-medium text-slate-600">Кількість:</span>
-                  <span className="font-bold text-slate-900">{selectedSaleDetails.quantity} шт.</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="font-medium text-slate-600">Ціна за одиницю:</span>
-                  <span className="font-bold text-slate-900">${selectedSaleDetails.price.toFixed(2)}</span>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="bg-white p-3 rounded-2xl border border-slate-100 shadow-sm">
+                    <span className="block text-xs font-bold text-slate-400 mb-1">Кількість</span>
+                    <span className="font-extrabold text-slate-900">{selectedSaleDetails.quantity} шт.</span>
+                  </div>
+                  <div className="bg-white p-3 rounded-2xl border border-slate-100 shadow-sm">
+                    <span className="block text-xs font-bold text-slate-400 mb-1">Сума</span>
+                    <span className="font-extrabold text-brand-600">${(selectedSaleDetails.price * selectedSaleDetails.quantity).toFixed(2)}</span>
+                  </div>
                 </div>
               </div>
 
+              {/* Status Tracker */}
+              <div className="p-5 bg-slate-50 rounded-[24px] border border-slate-100/60 shadow-sm">
+                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-5 flex items-center gap-2">
+                  <Clock size={14} /> Статус обробки
+                </h4>
+                
+                <div className="relative pl-3">
+                  <div className="absolute top-2 bottom-2 left-4 w-0.5 bg-slate-200 rounded-full"></div>
+                  
+                  <div className="space-y-5">
+                    {/* Step 1: Paid */}
+                    <div className="relative flex items-center gap-4">
+                      <div className={`w-3 h-3 rounded-full z-10 ring-4 ring-slate-50 ${['paid', 'shipped', 'delivered'].includes(selectedSaleDetails.order?.status) ? 'bg-emerald-500' : 'bg-slate-300'}`}></div>
+                      <div>
+                        <p className={`text-sm font-bold ${['paid', 'shipped', 'delivered'].includes(selectedSaleDetails.order?.status) ? 'text-slate-900' : 'text-slate-400'}`}>Оплачено покупцем</p>
+                      </div>
+                    </div>
+                    
+                    {/* Step 2: Approved/Shipped */}
+                    <div className="relative flex items-center gap-4">
+                      <div className={`w-3 h-3 rounded-full z-10 ring-4 ring-slate-50 ${selectedSaleDetails.is_approved ? 'bg-indigo-500' : 'bg-slate-300'}`}></div>
+                      <div>
+                        <p className={`text-sm font-bold ${selectedSaleDetails.is_approved ? 'text-slate-900' : 'text-slate-400'}`}>Підтверджено (Комплектується)</p>
+                      </div>
+                    </div>
+                    
+                    {/* Step 3: Delivered */}
+                    <div className="relative flex items-center gap-4">
+                      <div className={`w-3 h-3 rounded-full z-10 ring-4 ring-slate-50 ${selectedSaleDetails.is_delivered ? 'bg-emerald-500' : 'bg-slate-300'}`}></div>
+                      <div>
+                        <p className={`text-sm font-bold ${selectedSaleDetails.is_delivered ? 'text-emerald-600' : 'text-slate-400'}`}>Доставлено</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Delivery Info */}
               {selectedSaleDetails.order && (
-                <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                  <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Дані доставки</h4>
-                  <div className="space-y-1 text-sm">
-                    <p className="font-bold text-slate-900">{selectedSaleDetails.order.full_name || 'Не вказано'}</p>
-                    <p className="text-slate-600">{selectedSaleDetails.order.address || 'Не вказана адреса'}</p>
-                    <p className="text-slate-600">{selectedSaleDetails.order.city || 'Не вказане місто'}, {selectedSaleDetails.order.zip_code || ''}</p>
+                <div className="p-5 bg-slate-50 rounded-[24px] border border-slate-100/60 shadow-sm">
+                  <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                    <Map size={14} /> Дані для відправки
+                  </h4>
+                  <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm space-y-1">
+                    <p className="font-extrabold text-slate-900 text-lg">{selectedSaleDetails.order.full_name || 'Не вказано ім\'я'}</p>
+                    <p className="text-slate-600 font-medium">{selectedSaleDetails.order.address || 'Не вказана адреса'}</p>
+                    <p className="text-slate-500 text-sm">{selectedSaleDetails.order.city || 'Не вказане місто'}, {selectedSaleDetails.order.zip_code || ''}</p>
                   </div>
                 </div>
               )}
             </div>
             
-            <div className="flex gap-3">
-              <Button variant="ghost" className="flex-1" onClick={() => setSelectedSaleDetails(null)}>Закрити</Button>
-              {!selectedSaleDetails.is_approved && (
+            <div className="flex gap-4 pt-2 border-t border-slate-100">
+              <Button variant="outline" className="flex-1 shadow-sm" onClick={() => setSelectedSaleDetails(null)}>Закрити</Button>
+              {!selectedSaleDetails.is_approved ? (
                 <Button 
-                  className="flex-1" 
+                  className="flex-1 shadow-soft" 
                   onClick={() => {
                     handleApproveSale(selectedSaleDetails.id);
                     setSelectedSaleDetails(null);
@@ -560,6 +757,21 @@ const SellerDashboardPage: React.FC = () => {
                 >
                   Підтвердити
                 </Button>
+              ) : !selectedSaleDetails.is_delivered ? (
+                <Button 
+                  className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white shadow-soft shadow-emerald-500/20" 
+                  onClick={() => {
+                    handleDeliverSale(selectedSaleDetails.id);
+                    setSelectedSaleDetails(null);
+                  }}
+                >
+                  Відмітити як доставлено
+                </Button>
+              ) : (
+                <div className="flex-1 flex items-center justify-center gap-2 bg-emerald-50 text-emerald-600 font-bold rounded-2xl border border-emerald-100">
+                  <CheckCircle2 size={18} />
+                  Успішно завершено
+                </div>
               )}
             </div>
           </div>

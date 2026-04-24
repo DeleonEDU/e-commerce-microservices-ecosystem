@@ -159,7 +159,7 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
                 type="text" 
                 required
                 placeholder="Наприклад: iPhone 15 Pro"
-                className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:bg-white focus:ring-4 focus:ring-brand-500/10 focus:border-brand-500 outline-none transition-all font-medium"
+                className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:ring-4 focus:ring-brand-500/20 focus:border-brand-500 outline-none transition-all font-medium shadow-sm hover:border-slate-300"
                 value={formData.name}
                 onChange={(e) => setFormData({...formData, name: e.target.value})}
               />
@@ -173,7 +173,7 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
               <input 
                 type="text" 
                 placeholder="Apple"
-                className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:bg-white focus:ring-4 focus:ring-brand-500/10 focus:border-brand-500 outline-none transition-all font-medium"
+                className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:ring-4 focus:ring-brand-500/20 focus:border-brand-500 outline-none transition-all font-medium shadow-sm hover:border-slate-300"
                 value={formData.brand}
                 onChange={(e) => setFormData({...formData, brand: e.target.value})}
               />
@@ -186,7 +186,7 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
               </label>
               <select 
                 required
-                className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:bg-white focus:ring-4 focus:ring-brand-500/10 focus:border-brand-500 outline-none transition-all font-bold text-slate-600 appearance-none"
+                className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:ring-4 focus:ring-brand-500/20 focus:border-brand-500 outline-none transition-all font-bold text-slate-600 appearance-none shadow-sm hover:border-slate-300"
                 value={formData.category_id}
                 onChange={handleCategoryChange}
               >
@@ -207,7 +207,7 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
                 step="0.01"
                 required
                 placeholder="999.99"
-                className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:bg-white focus:ring-4 focus:ring-brand-500/10 focus:border-brand-500 outline-none transition-all font-medium"
+                className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:ring-4 focus:ring-brand-500/20 focus:border-brand-500 outline-none transition-all font-medium shadow-sm hover:border-slate-300"
                 value={formData.price}
                 onChange={(e) => setFormData({...formData, price: e.target.value})}
               />
@@ -222,7 +222,7 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
                 type="number" 
                 required
                 placeholder="50"
-                className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:bg-white focus:ring-4 focus:ring-brand-500/10 focus:border-brand-500 outline-none transition-all font-medium"
+                className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:ring-4 focus:ring-brand-500/20 focus:border-brand-500 outline-none transition-all font-medium shadow-sm hover:border-slate-300"
                 value={formData.stock}
                 onChange={(e) => setFormData({...formData, stock: e.target.value})}
               />
@@ -237,7 +237,7 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
                 type="text" 
                 inputMode="url"
                 placeholder="https://…"
-                className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:bg-white focus:ring-4 focus:ring-brand-500/10 focus:border-brand-500 outline-none transition-all font-medium"
+                className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:ring-4 focus:ring-brand-500/20 focus:border-brand-500 outline-none transition-all font-medium shadow-sm hover:border-slate-300"
                 value={formData.image_url}
                 onChange={(e) => setFormData({...formData, image_url: e.target.value})}
               />
@@ -252,7 +252,7 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
                 required
                 rows={4}
                 placeholder="Детальний опис вашого товару..."
-                className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:bg-white focus:ring-4 focus:ring-brand-500/10 focus:border-brand-500 outline-none transition-all font-medium resize-none"
+                className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:ring-4 focus:ring-brand-500/20 focus:border-brand-500 outline-none transition-all font-medium resize-none shadow-sm hover:border-slate-300"
                 value={formData.description}
                 onChange={(e) => setFormData({...formData, description: e.target.value})}
               />
@@ -270,14 +270,14 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
                     <input 
                       type="text" 
                       placeholder="Назва (напр. Колір)"
-                      className="flex-1 px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl focus:bg-white focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 outline-none transition-all text-sm font-medium"
+                      className="flex-1 px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-4 focus:ring-brand-500/20 focus:border-brand-500 outline-none transition-all text-sm font-medium shadow-sm hover:border-slate-300"
                       value={spec.key}
                       onChange={(e) => updateSpec(idx, 'key', e.target.value)}
                     />
                     <input 
                       type="text" 
                       placeholder="Значення (напр. Чорний)"
-                      className="flex-1 px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl focus:bg-white focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 outline-none transition-all text-sm font-medium"
+                      className="flex-1 px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-4 focus:ring-brand-500/20 focus:border-brand-500 outline-none transition-all text-sm font-medium shadow-sm hover:border-slate-300"
                       value={spec.value}
                       onChange={(e) => updateSpec(idx, 'value', e.target.value)}
                     />
