@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { ShoppingCart, Star, Package } from 'lucide-react';
+import { ShoppingCart, Star, Package, Plus } from 'lucide-react';
 import { useDispatch } from 'react-redux';
 import { Product } from '../types/product';
 import Button from './ui/Button';
@@ -20,83 +20,75 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
   };
 
   return (
-    <div className={`group rounded-3xl border overflow-hidden transition-all duration-500 ${product.stock === 0 ? 'opacity-60 grayscale-[50%]' : 'hover:shadow-card hover:-translate-y-2'} ${product.is_premium ? 'bg-amber-50/10 border-amber-200' : 'bg-white border-slate-100'}`}>
+    <div className={`group rounded-[24px] border overflow-hidden transition-all duration-300 ${product.stock === 0 ? 'opacity-60 grayscale-[50%]' : 'hover:shadow-lg hover:-translate-y-1'} ${product.is_premium ? 'bg-amber-50/10 border-amber-200' : 'bg-white border-slate-100'}`}>
       {/* Image Section */}
-      <Link to={`/product/${product.id}`} className="block aspect-[4/5] bg-slate-50 relative overflow-hidden">
+      <Link to={`/product/${product.id}`} className="block aspect-square bg-slate-50 relative overflow-hidden">
         {product.image_url ? (
           <img
             src={product.image_url}
             alt={product.name}
-            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
             referrerPolicy="no-referrer"
           />
         ) : (
-          <div className="absolute inset-0 flex items-center justify-center group-hover:scale-110 transition-transform duration-700">
-            <Package size={64} className="text-slate-200" />
+          <div className="absolute inset-0 flex items-center justify-center group-hover:scale-105 transition-transform duration-500">
+            <Package size={48} className="text-slate-200" />
           </div>
         )}
         
         {/* Quick Action Overlay */}
         {product.stock > 0 && (
-          <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 translate-y-2 group-hover:translate-y-0 transition-all duration-300">
-            <Button 
-              variant="secondary" 
-              size="sm" 
-              className="h-10 w-10 p-0 rounded-full bg-white/90 backdrop-blur-sm shadow-soft"
+          <div className="absolute bottom-3 right-3 z-20">
+            <button 
+              className="h-10 w-10 flex items-center justify-center rounded-full bg-brand-600 text-white shadow-lg hover:bg-brand-700 transition-colors"
               onClick={handleAddToCart}
+              title="Додати в кошик"
             >
-              <ShoppingCart size={18} className="text-slate-700" />
-            </Button>
+              <ShoppingCart size={18} />
+            </button>
           </div>
         )}
 
         {/* Premium Badge */}
         {product.is_premium && (
-          <div className="absolute top-4 left-4 z-10">
-            <span className="px-3 py-1 bg-amber-400 text-amber-900 rounded-full text-xs font-bold uppercase tracking-wider shadow-soft flex items-center gap-1">
-              <Star size={12} fill="currentColor" />
+          <div className="absolute top-3 left-3 z-10">
+            <span className="px-2.5 py-1 bg-gradient-to-r from-amber-400 to-amber-500 text-white rounded-full text-[10px] font-extrabold uppercase tracking-wider shadow-sm flex items-center gap-1">
+              <Star size={10} fill="currentColor" />
               Top
             </span>
           </div>
         )}
         
         {/* Category Badge */}
-        <div className="absolute bottom-4 left-4">
-          <span className="px-3 py-1 bg-white/80 backdrop-blur-sm rounded-full text-[10px] font-bold uppercase tracking-wider text-slate-700 shadow-soft">
+        <div className="absolute top-3 right-3 z-10">
+          <span className="px-2.5 py-1 bg-white/90 backdrop-blur-md rounded-full text-[10px] font-bold uppercase tracking-wider text-slate-700 shadow-sm">
             {product.category_name}
           </span>
         </div>
       </Link>
 
       {/* Content Section */}
-      <div className="p-6">
-        <div className="flex items-center gap-1 mb-2">
+      <div className="p-4">
+        <div className="flex items-center gap-1 mb-1.5">
           <div className="flex items-center text-amber-400">
-            <Star size={14} fill="currentColor" />
+            <Star size={12} fill="currentColor" />
           </div>
-          <span className="text-xs font-bold text-slate-400">{product.rating || '4.5'}</span>
-          <span className="text-xs text-slate-300">({product.review_count || '12'})</span>
+          <span className="text-[11px] font-bold text-slate-500">{product.rating || '4.5'}</span>
+          <span className="text-[11px] text-slate-400">({product.review_count || '12'})</span>
         </div>
 
         <Link to={`/product/${product.id}`}>
-          <h3 className="font-bold text-slate-900 mb-2 group-hover:text-brand-600 transition-colors line-clamp-1 text-lg">
+          <h3 className="font-bold text-slate-900 mb-1 group-hover:text-brand-600 transition-colors line-clamp-2 text-sm leading-snug h-10">
             {product.name}
           </h3>
         </Link>
         
-        <p className="text-slate-500 text-sm mb-6 line-clamp-2 leading-relaxed">
-          {product.description}
-        </p>
-        
-        <div className="flex justify-between items-center pt-5 border-t border-slate-50">
+        <div className="flex justify-between items-end mt-3">
           <div className="flex flex-col">
-            <span className="text-xs font-bold text-slate-300 uppercase tracking-widest">Ціна</span>
-            <span className="text-2xl font-extrabold text-slate-900 tracking-tight">${product.price.toFixed(2)}</span>
+            <span className="text-lg font-extrabold text-slate-900 tracking-tight">${product.price.toFixed(2)}</span>
           </div>
-          {product.stock > 0 ? (
-            <Button size="sm" className="rounded-xl px-5 shadow-soft" onClick={handleAddToCart}>Додати в кошик</Button>
-          ) : (
-            <div className="px-4 py-2 bg-slate-100 text-slate-400 text-xs font-bold uppercase tracking-widest rounded-xl">Немає в наявності</div>
+          {product.stock === 0 && (
+            <span className="text-[10px] font-bold text-rose-500 uppercase tracking-wider bg-rose-50 px-2 py-1 rounded-lg">Немає</span>
           )}
         </div>
       </div>

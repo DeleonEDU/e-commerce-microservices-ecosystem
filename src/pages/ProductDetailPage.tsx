@@ -25,7 +25,9 @@ import {
   CheckCircle2,
   MessageSquare,
   User,
-  Send
+  Send,
+  AlertCircle,
+  X
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { uk } from 'date-fns/locale';
@@ -235,11 +237,11 @@ const ProductDetailPage: React.FC = () => {
                 </div>
 
                 <div className="flex flex-col sm:flex-row gap-4">
-                  {product.is_active === false ? (
+                  {product.is_active === false || product.stock <= 0 ? (
                     <div className="w-full py-4 text-center rounded-2xl bg-rose-50 text-rose-500 font-bold uppercase tracking-widest text-sm border border-rose-100">
                       Товар закінчився
                     </div>
-                  ) : product.stock > 0 ? (
+                  ) : (
                     <>
                       <Button 
                         size="lg" 
@@ -263,10 +265,6 @@ const ProductDetailPage: React.FC = () => {
                         Купити зараз
                       </Button>
                     </>
-                  ) : (
-                    <div className="w-full py-4 text-center rounded-2xl bg-slate-100 text-slate-400 font-bold uppercase tracking-widest text-sm">
-                      Немає в наявності
-                    </div>
                   )}
                 </div>
               </div>
@@ -516,7 +514,7 @@ const ProductDetailPage: React.FC = () => {
                 Дивитися всі
               </Link>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 md:gap-6">
               {similarProducts.map((p) => (
                 <ProductCard key={p.id} product={p} />
               ))}
