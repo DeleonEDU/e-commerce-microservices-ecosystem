@@ -1,6 +1,96 @@
-import React, { useState } from 'react';
-import { CreditCard, X, ShieldCheck, Loader2 } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { X, ShieldCheck, Loader2 } from 'lucide-react';
 import Button from './ui/Button';
+import { loadStripe } from '@stripe/stripe-js';
+import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js';
+import { useCreateSubscriptionIntentMutation } from '../api/subscriptionApiSlice';
+import { useConfirmPaymentMutation } from '../api/paymentApiSlice';
+import { useSelector } from 'react-redux';
+import { RootState } from '../store/store';
+
+// TODO: Replace with env variable if needed
+const stripePromise = loadStripe('pk_test_51TPMQsH8SpgjaGIVWO9vvxqj1HdDi3ZgVpzUQpj0r9EAr6hAbEKjwAPoxS9Cl6xTYBl7BqC4smgyffEHuIv8PmXd00mN5NUNfe');
+
+interface StripeSubscriptionFormProps {
+  clientSecret: string;
+  onSuccess: (paymentIntentId: string) => void;
+  onCancel: () => void;
+  amount: number;
+}
+
+const StripeSubscriptionForm: React.FC<StripeSubscriptionFormProps> = ({ clientSecret, onSuccess, onCancel, amount }) => {
+  const stripe = useStripe();
+  const elements = useElements();
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!stripe || !elements) {
+      return;
+    }
+
+    setIsProcessing(true);
+    setErrorMessage(null);
+
+    const { error, paymentIntent } = await stripe.confirmPayment({
+      elements,
+      confirmParams: {
+        return_url: window.location.origin + '/dashboard',
+      },
+      redirect: 'if_required',
+    });
+
+    if (error) {
+      setErrorMessage(error.message || 'Виникла помилка під час оплати.');
+      setIsProcessing(false);
+    } else if (paymentIntent && paymentIntent.status === 'succeeded') {
+      onSuccess(paymentIntent.id);
+    } else {
+      setErrorMessage('Статус платежу: ' + (paymentIntent?.status || 'невідомо'));
+      setIsProcessing(false);
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="p-6 space-y-6">
+      <div className="p-4 rounded-2xl bg-brand-50 flex items-center justify-between border border-brand-100 text-brand-900">
+        <span className="font-bold">До сплати:</span>
+        <span className="text-2xl font-extrabold">${amount.toFixed(2)}<span className="text-sm text-brand-600/70">/міс</span></span>
+      </div>
+
+      <PaymentElement />
+      
+      {errorMessage && (
+        <div className="p-4 bg-red-50 text-red-600 rounded-2xl text-sm font-medium">
+          {errorMessage}
+        </div>
+      )}
+
+      <div className="flex items-center gap-2 text-xs font-bold text-emerald-600 bg-emerald-50 p-3 rounded-xl">
+        <ShieldCheck size={16} />
+        Безпечна оплата через Stripe
+      </div>
+
+      <Button 
+        type="submit" 
+        className="w-full shadow-soft" 
+        size="lg"
+        disabled={!stripe || isProcessing}
+      >
+        {isProcessing ? (
+          <span className="flex items-center gap-2">
+            <Loader2 className="animate-spin" size={20} />
+            Обробка...
+          </span>
+        ) : (
+          `Оплатити $${amount.toFixed(2)}`
+        )}
+      </Button>
+    </form>
+  );
+};
 
 interface PaymentModalProps {
   isOpen: boolean;
@@ -11,35 +101,32 @@ interface PaymentModalProps {
 }
 
 const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onSuccess, tier, amount }) => {
-  const [isProcessing, setIsProcessing] = useState(false);
+  const { user } = useSelector((state: RootState) => state.auth);
+  const [createSubscriptionIntent] = useCreateSubscriptionIntentMutation();
+  const [clientSecret, setClientSecret] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (isOpen && user?.id && amount > 0) {
+      setClientSecret(null);
+      setError(null);
+      createSubscriptionIntent({
+        amount,
+        user_id: user.id,
+        tier
+      })
+        .unwrap()
+        .then((res) => {
+          setClientSecret(res.client_secret);
+        })
+        .catch((err) => {
+          setError('Не вдалося ініціалізувати оплату. Спробуйте пізніше.');
+          console.error(err);
+        });
+    }
+  }, [isOpen, amount, user?.id, tier, createSubscriptionIntent]);
 
   if (!isOpen) return null;
-
-  const handlePayment = (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsProcessing(true);
-    
-    // Simulate Stripe payment processing delay
-    setTimeout(() => {
-      setIsProcessing(false);
-      onSuccess();
-    }, 2000);
-  };
-
-  const handleCardNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value.replace(/\D/g, '');
-    const formattedValue = value.replace(/(\d{4})/g, '$1 ').trim();
-    e.target.value = formattedValue;
-  };
-
-  const handleExpiryChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value.replace(/\D/g, '');
-    if (value.length >= 2) {
-      e.target.value = `${value.slice(0, 2)}/${value.slice(2, 4)}`;
-    } else {
-      e.target.value = value;
-    }
-  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
@@ -60,84 +147,28 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onSuccess,
           </button>
         </div>
 
-        <form onSubmit={handlePayment} className="p-6 space-y-6">
-          <div className="p-4 rounded-2xl bg-brand-50 flex items-center justify-between border border-brand-100 text-brand-900">
-            <span className="font-bold">До сплати:</span>
-            <span className="text-2xl font-extrabold">${amount.toFixed(2)}<span className="text-sm text-brand-600/70">/міс</span></span>
-          </div>
-
-          <div className="space-y-4">
-            <div>
-              <label className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1 mb-1 block">Номер картки</label>
-              <div className="relative">
-                <CreditCard className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
-                <input 
-                  type="text" 
-                  required
-                  placeholder="0000 0000 0000 0000"
-                  maxLength={19}
-                  onChange={handleCardNumberChange}
-                  className="w-full pl-12 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-4 focus:ring-brand-500/10 focus:border-brand-500 outline-none transition-all font-medium"
-                />
-              </div>
+        {error ? (
+          <div className="p-6 text-center">
+            <div className="p-4 bg-red-50 text-red-600 rounded-2xl text-sm font-medium mb-4">
+              {error}
             </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1 mb-1 block">Термін дії</label>
-                <input 
-                  type="text" 
-                  required
-                  placeholder="MM/YY"
-                  maxLength={5}
-                  onChange={handleExpiryChange}
-                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-4 focus:ring-brand-500/10 focus:border-brand-500 outline-none transition-all font-medium"
-                />
-              </div>
-              <div>
-                <label className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1 mb-1 block">CVC</label>
-                <input 
-                  type="text" 
-                  required
-                  placeholder="123"
-                  maxLength={4}
-                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-4 focus:ring-brand-500/10 focus:border-brand-500 outline-none transition-all font-medium"
-                />
-              </div>
-            </div>
-            
-            <div>
-              <label className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1 mb-1 block">Ім'я на картці</label>
-              <input 
-                type="text" 
-                required
-                placeholder="Ivan Ivanov"
-                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-4 focus:ring-brand-500/10 focus:border-brand-500 outline-none transition-all font-medium uppercase"
-              />
-            </div>
+            <Button onClick={onClose} variant="outline">Закрити</Button>
           </div>
-
-          <div className="flex items-center gap-2 text-xs font-bold text-emerald-600 bg-emerald-50 p-3 rounded-xl">
-            <ShieldCheck size={16} />
-            Платежі надійно захищені (Stripe Mockup)
+        ) : !clientSecret ? (
+          <div className="p-12 flex flex-col items-center justify-center text-slate-400">
+            <Loader2 className="animate-spin mb-4" size={32} />
+            <p className="text-sm font-bold uppercase tracking-widest">Підготовка платежу...</p>
           </div>
-
-          <Button 
-            type="submit" 
-            className="w-full shadow-soft" 
-            size="lg"
-            disabled={isProcessing}
-          >
-            {isProcessing ? (
-              <span className="flex items-center gap-2">
-                <Loader2 className="animate-spin" size={20} />
-                Обробка...
-              </span>
-            ) : (
-              `Оплатити $${amount.toFixed(2)}`
-            )}
-          </Button>
-        </form>
+        ) : (
+          <Elements stripe={stripePromise} options={{ clientSecret, appearance: { theme: 'stripe' } }}>
+            <StripeSubscriptionForm 
+              clientSecret={clientSecret} 
+              onSuccess={onSuccess}
+              onCancel={onClose}
+              amount={amount}
+            />
+          </Elements>
+        )}
       </div>
     </div>
   );

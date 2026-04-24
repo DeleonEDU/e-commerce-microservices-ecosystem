@@ -11,6 +11,11 @@ class PaymentCreate(BaseModel):
     user_id: int
     amount: float
 
+class SubscriptionIntentCreate(BaseModel):
+    user_id: int
+    tier: SubscriptionTier
+    amount: float
+
 
 class PaymentResponse(BaseModel):
     id: int

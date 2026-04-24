@@ -3,7 +3,7 @@ import { apiSlice } from '../store/apiSlice';
 export interface Subscription {
   id: number;
   user_id: number;
-  tier: 'free' | 'pro' | 'vip';
+  tier: 'free' | 'plus' | 'pro' | 'vip';
   status: string;
 }
 
@@ -19,9 +19,16 @@ export const subscriptionApiSlice = apiSlice.injectEndpoints({
         method: 'PUT',
         body: { tier },
       }),
-      invalidatesTags: ['Subscription', 'Products'], // Invalidate products to refresh premium status
+      invalidatesTags: ['Subscription', 'Product'], // Invalidate products to refresh premium status
+    }),
+    createSubscriptionIntent: builder.mutation<{ client_secret: string, id: number }, { amount: number, user_id: number, tier: string }>({
+      query: (data) => ({
+        url: '/payments/subscription-intents',
+        method: 'POST',
+        body: data,
+      }),
     }),
   }),
 });
 
-export const { useGetSubscriptionQuery, useUpgradeSubscriptionMutation } = subscriptionApiSlice;
+export const { useGetSubscriptionQuery, useUpgradeSubscriptionMutation, useCreateSubscriptionIntentMutation } = subscriptionApiSlice;
