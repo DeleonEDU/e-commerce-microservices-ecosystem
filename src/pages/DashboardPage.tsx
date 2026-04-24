@@ -196,8 +196,15 @@ const DashboardPage: React.FC = () => {
   }
 
   const totalOrders = orders.length;
-  const deliveredCount = orders.filter((o) => o.status === 'delivered').length;
-  const inProgressCount = orders.filter((o) => ['pending', 'paid', 'shipped'].includes(o.status)).length;
+  const deliveredCount = orders.filter((o) => {
+    const isAnyDelivered = o.items?.some(i => i.is_delivered);
+    return isAnyDelivered || o.status === 'delivered';
+  }).length;
+  const inProgressCount = orders.filter((o) => {
+    const isAnyDelivered = o.items?.some(i => i.is_delivered);
+    if (isAnyDelivered) return false;
+    return ['pending', 'paid', 'shipped'].includes(o.status);
+  }).length;
   const recentOrders = orders.slice(0, 8);
 
   return (
@@ -407,7 +414,10 @@ const DashboardPage: React.FC = () => {
                         </thead>
                         <tbody className="divide-y divide-slate-50">
                           {(activeTab === 'orders' ? orders : recentOrders).map((order) => {
-                            const sp = statusPresentation[order.status];
+                            const isAnyDelivered = order.items?.some(i => i.is_delivered);
+                            const isAnyApproved = order.items?.some(i => i.is_approved);
+                            const displayStatus = isAnyDelivered ? 'delivered' : isAnyApproved && order.status !== 'delivered' ? 'shipped' : order.status;
+                            const sp = statusPresentation[displayStatus as OrderStatus];
                             const Icon = sp.icon;
                             const created = new Date(order.created_at);
                             const dateLabel = Number.isNaN(created.getTime())
@@ -651,9 +661,17 @@ const DashboardPage: React.FC = () => {
           <div className="relative bg-white rounded-[32px] p-8 max-w-lg w-full shadow-2xl animate-fade-in text-left max-h-[90vh] overflow-y-auto no-scrollbar">
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-2xl font-extrabold text-slate-900">Замовлення #{selectedOrderDetails.id}</h3>
-              <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-full ${statusPresentation[selectedOrderDetails.status as OrderStatus].bg} ${statusPresentation[selectedOrderDetails.status as OrderStatus].color} text-xs font-bold`}>
-                {statusPresentation[selectedOrderDetails.status as OrderStatus].label}
-              </div>
+              {(() => {
+                const isAnyDelivered = selectedOrderDetails.items?.some(i => i.is_delivered);
+                const isAnyApproved = selectedOrderDetails.items?.some(i => i.is_approved);
+                const displayStatus = isAnyDelivered ? 'delivered' : isAnyApproved && selectedOrderDetails.status !== 'delivered' ? 'shipped' : selectedOrderDetails.status;
+                const sp = statusPresentation[displayStatus as OrderStatus];
+                return (
+                  <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-full ${sp.bg} ${sp.color} text-xs font-bold`}>
+                    {sp.label}
+                  </div>
+                );
+              })()}
             </div>
 
             {/* Tracking Mock */}
@@ -663,84 +681,99 @@ const DashboardPage: React.FC = () => {
                 Статус доставки
               </h4>
               
-              <div className="relative">
-                <div className="absolute top-0 bottom-0 left-3 w-px bg-slate-200"></div>
+              {(() => {
+                const isAnyDelivered = selectedOrderDetails.items?.some(i => i.is_delivered);
+                const isAnyApproved = selectedOrderDetails.items?.some(i => i.is_approved);
+                const displayStatus = isAnyDelivered ? 'delivered' : isAnyApproved && selectedOrderDetails.status !== 'delivered' ? 'shipped' : selectedOrderDetails.status;
                 
-                <div className="space-y-6">
-                  <div className="relative flex items-center gap-4">
-                    <div className="w-6 h-6 rounded-full bg-emerald-500 text-white flex items-center justify-center z-10 shadow-sm">
-                      <CheckCircle2 size={12} />
-                    </div>
-                    <div>
-                      <p className="text-sm font-bold text-slate-900">Замовлення оформлено</p>
-                      <p className="text-xs text-slate-500">{format(new Date(selectedOrderDetails.created_at), 'dd MMM yyyy, HH:mm', { locale: uk })}</p>
-                    </div>
-                  </div>
-                  
-                  <div className="relative flex items-center gap-4">
-                    <div className={`w-6 h-6 rounded-full flex items-center justify-center z-10 shadow-sm ${
-                      ['paid', 'shipped', 'delivered'].includes(selectedOrderDetails.status) 
-                      ? 'bg-emerald-500 text-white' 
-                      : 'bg-white border-2 border-slate-200 text-slate-300'
-                    }`}>
-                      {['paid', 'shipped', 'delivered'].includes(selectedOrderDetails.status) && <CheckCircle2 size={12} />}
-                    </div>
-                    <div>
-                      <p className={`text-sm font-bold ${['paid', 'shipped', 'delivered'].includes(selectedOrderDetails.status) ? 'text-slate-900' : 'text-slate-400'}`}>
-                        Оплачено, обробка
-                      </p>
-                      {['paid', 'shipped', 'delivered'].includes(selectedOrderDetails.status) && (
-                        <p className="text-xs text-emerald-600 font-medium mt-1 flex items-center gap-1">
-                          <CreditCard size={12} />
-                          Оплата підтверджена
-                        </p>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="relative flex items-center gap-4">
-                    <div className={`w-6 h-6 rounded-full flex items-center justify-center z-10 shadow-sm ${
-                      ['shipped', 'delivered'].includes(selectedOrderDetails.status) 
-                      ? 'bg-emerald-500 text-white' 
-                      : 'bg-white border-2 border-slate-200 text-slate-300'
-                    }`}>
-                      {['shipped', 'delivered'].includes(selectedOrderDetails.status) && <CheckCircle2 size={12} />}
-                    </div>
-                    <div>
-                      <p className={`text-sm font-bold ${['shipped', 'delivered'].includes(selectedOrderDetails.status) ? 'text-slate-900' : 'text-slate-400'}`}>
-                        Комплектується
-                      </p>
-                      {['shipped', 'delivered'].includes(selectedOrderDetails.status) && (
-                        <p className="text-xs text-emerald-600 font-medium mt-1 flex items-center gap-1">
-                          <Package size={12} />
-                          Продавець комплектує замовлення
-                        </p>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="relative flex items-center gap-4">
-                    <div className={`w-6 h-6 rounded-full flex items-center justify-center z-10 shadow-sm ${
-                      selectedOrderDetails.status === 'delivered' 
-                      ? 'bg-emerald-500 text-white' 
-                      : 'bg-white border-2 border-slate-200 text-slate-300'
-                    }`}>
-                      {selectedOrderDetails.status === 'delivered' && <CheckCircle2 size={12} />}
-                    </div>
-                    <div>
-                      <p className={`text-sm font-bold ${selectedOrderDetails.status === 'delivered' ? 'text-emerald-600' : 'text-slate-400'}`}>
-                        Доставлено
-                      </p>
-                      {selectedOrderDetails.status === 'delivered' && (
-                        <p className="text-xs text-emerald-600 font-medium mt-1 flex items-center gap-1">
+                return (
+                  <div className="relative">
+                    {/* Background line */}
+                    <div className="absolute top-3 bottom-3 left-3 w-0.5 bg-slate-200"></div>
+                    {/* Active line */}
+                    <div className={`absolute top-3 left-3 w-0.5 bg-emerald-500 transition-all duration-500 ${
+                      displayStatus === 'delivered' ? 'h-[calc(100%-24px)]' :
+                      displayStatus === 'shipped' ? 'h-[66%]' :
+                      displayStatus === 'paid' ? 'h-[33%]' : 'h-0'
+                    }`}></div>
+                    
+                    <div className="space-y-6">
+                      <div className="relative flex items-center gap-4">
+                        <div className="w-6 h-6 rounded-full bg-emerald-500 text-white flex items-center justify-center z-10 shadow-sm">
                           <CheckCircle2 size={12} />
-                          Успішно доставлено
-                        </p>
-                      )}
+                        </div>
+                        <div>
+                          <p className="text-sm font-bold text-slate-900">Замовлення оформлено</p>
+                          <p className="text-xs text-slate-500">{format(new Date(selectedOrderDetails.created_at), 'dd MMM yyyy, HH:mm', { locale: uk })}</p>
+                        </div>
+                      </div>
+                      
+                      <div className="relative flex items-center gap-4">
+                        <div className={`w-6 h-6 rounded-full flex items-center justify-center z-10 shadow-sm ${
+                          ['paid', 'shipped', 'delivered'].includes(displayStatus) 
+                          ? 'bg-emerald-500 text-white' 
+                          : 'bg-white border-2 border-slate-200 text-slate-300'
+                        }`}>
+                          {['paid', 'shipped', 'delivered'].includes(displayStatus) && <CheckCircle2 size={12} />}
+                        </div>
+                        <div>
+                          <p className={`text-sm font-bold ${['paid', 'shipped', 'delivered'].includes(displayStatus) ? 'text-slate-900' : 'text-slate-400'}`}>
+                            Оплачено, обробка
+                          </p>
+                          {['paid', 'shipped', 'delivered'].includes(displayStatus) && (
+                            <p className="text-xs text-emerald-600 font-medium mt-1 flex items-center gap-1">
+                              <CreditCard size={12} />
+                              Оплата підтверджена
+                            </p>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="relative flex items-center gap-4">
+                        <div className={`w-6 h-6 rounded-full flex items-center justify-center z-10 shadow-sm ${
+                          ['shipped', 'delivered'].includes(displayStatus) 
+                          ? 'bg-emerald-500 text-white' 
+                          : 'bg-white border-2 border-slate-200 text-slate-300'
+                        }`}>
+                          {['shipped', 'delivered'].includes(displayStatus) && <CheckCircle2 size={12} />}
+                        </div>
+                        <div>
+                          <p className={`text-sm font-bold ${['shipped', 'delivered'].includes(displayStatus) ? 'text-slate-900' : 'text-slate-400'}`}>
+                            Комплектується
+                          </p>
+                          {['shipped', 'delivered'].includes(displayStatus) && (
+                            <p className="text-xs text-emerald-600 font-medium mt-1 flex items-center gap-1">
+                              <Package size={12} />
+                              Продавець комплектує замовлення
+                            </p>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="relative flex items-center gap-4">
+                        <div className={`w-6 h-6 rounded-full flex items-center justify-center z-10 shadow-sm ${
+                          displayStatus === 'delivered' 
+                          ? 'bg-emerald-500 text-white' 
+                          : 'bg-white border-2 border-slate-200 text-slate-300'
+                        }`}>
+                          {displayStatus === 'delivered' && <CheckCircle2 size={12} />}
+                        </div>
+                        <div>
+                          <p className={`text-sm font-bold ${displayStatus === 'delivered' ? 'text-emerald-600' : 'text-slate-400'}`}>
+                            Доставлено
+                          </p>
+                          {displayStatus === 'delivered' && (
+                            <p className="text-xs text-emerald-600 font-medium mt-1 flex items-center gap-1">
+                              <CheckCircle2 size={12} />
+                              Успішно доставлено
+                            </p>
+                          )}
+                        </div>
+                      </div>
                     </div>
                   </div>
-                </div>
-              </div>
+                );
+              })()}
             </div>
 
             <div className="space-y-6 mb-8">

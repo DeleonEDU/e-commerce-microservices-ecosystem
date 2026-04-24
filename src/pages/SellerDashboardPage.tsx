@@ -621,6 +621,11 @@ const SellerDashboardPage: React.FC = () => {
                 
                 <div className="relative pl-3">
                   <div className="absolute top-2 bottom-2 left-4 w-0.5 bg-slate-200 rounded-full"></div>
+                  <div className={`absolute top-2 left-4 w-0.5 bg-emerald-500 rounded-full transition-all duration-500 ${
+                    selectedSaleDetails.is_delivered ? 'h-[calc(100%-16px)]' :
+                    selectedSaleDetails.is_approved ? 'h-[50%]' :
+                    ['paid', 'shipped', 'delivered'].includes(selectedSaleDetails.order?.status) ? 'h-0' : 'h-0'
+                  }`}></div>
                   
                   <div className="space-y-5">
                     {/* Step 1: Paid */}
@@ -633,7 +638,7 @@ const SellerDashboardPage: React.FC = () => {
                     
                     {/* Step 2: Approved/Shipped */}
                     <div className="relative flex items-center gap-4">
-                      <div className={`w-3 h-3 rounded-full z-10 ring-4 ring-slate-50 ${selectedSaleDetails.is_approved ? 'bg-indigo-500' : 'bg-slate-300'}`}></div>
+                      <div className={`w-3 h-3 rounded-full z-10 ring-4 ring-slate-50 ${selectedSaleDetails.is_approved ? 'bg-emerald-500' : 'bg-slate-300'}`}></div>
                       <div>
                         <p className={`text-sm font-bold ${selectedSaleDetails.is_approved ? 'text-slate-900' : 'text-slate-400'}`}>Підтверджено (Комплектується)</p>
                       </div>
