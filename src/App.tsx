@@ -2,7 +2,7 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Link, useNavigate, Navigate } from 'react-router-dom';
 import { Provider, useSelector, useDispatch } from 'react-redux';
 import { store, RootState } from './store/store';
-import { ShoppingCart, Package, Home as HomeIcon, LogOut } from 'lucide-react';
+import { ShoppingCart, Package, Home as HomeIcon, LogOut, Heart } from 'lucide-react';
 import LoginPage from './features/auth/LoginPage';
 import RegisterPage from './features/auth/RegisterPage';
 import { logout, setUser } from './features/auth/authSlice';
@@ -16,11 +16,14 @@ import CartPage from './pages/CartPage';
 import DashboardPage from './pages/DashboardPage';
 import CheckoutPage from './pages/CheckoutPage';
 import SellerDashboardPage from './pages/SellerDashboardPage';
+import FavoritesPage from './pages/FavoritesPage';
+import StorePage from './pages/StorePage';
 import { selectCartItemsCount } from './features/cart/cartSlice';
 
 const Navbar = () => {
   const { isAuthenticated, user } = useSelector((state: RootState) => state.auth);
   const cartItemsCount = useSelector(selectCartItemsCount);
+  const favoritesCount = useSelector((state: RootState) => state.favorites.items.length);
   const dispatch = useDispatch();
   const navigate = useNavigate();
 
@@ -52,6 +55,18 @@ const Navbar = () => {
               <span>Панель продавця</span>
             </Link>
           )}
+
+          <Link to="/favorites" className="text-slate-600 hover:text-rose-500 flex items-center gap-2 font-bold transition-colors group">
+            <div className="relative p-2 bg-slate-50 rounded-xl group-hover:bg-rose-50 transition-colors border border-slate-100 group-hover:border-rose-100">
+              <Heart size={20} className="group-hover:scale-110 transition-transform" />
+              {favoritesCount > 0 && (
+                <span className="absolute -top-1.5 -right-1.5 bg-rose-500 text-white text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center shadow-soft animate-fade-in border-2 border-white">
+                  {favoritesCount}
+                </span>
+              )}
+            </div>
+            <span className="text-sm hidden md:block">Обране</span>
+          </Link>
 
           <Link to="/cart" className="text-slate-600 hover:text-brand-600 flex items-center gap-2 font-bold transition-colors group">
             <div className="relative p-2 bg-slate-50 rounded-xl group-hover:bg-brand-50 transition-colors border border-slate-100 group-hover:border-brand-100">
@@ -107,18 +122,19 @@ const AppContent = () => {
   
   // Якщо є токен, але ми ще не завантажили дані користувача
   const { data: profileData, error: profileError } = useGetProfileQuery(undefined, {
-    skip: !token || !isAuthenticated,
+    skip: !token,
+    refetchOnMountOrArgChange: true,
   });
 
   React.useEffect(() => {
     if (profileData) {
       dispatch(setUser(profileData));
     }
-    if (profileError) {
+    if (profileError && token) {
       // Якщо токен недійсний або сталася помилка - виходимо
       dispatch(logout());
     }
-  }, [profileData, profileError, dispatch]);
+  }, [profileData, profileError, token, dispatch]);
 
   return (
     <div className="min-h-screen bg-gray-50 font-sans">
@@ -132,6 +148,8 @@ const AppContent = () => {
           <Route path="/checkout" element={<CheckoutPage />} />
           <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/seller/dashboard" element={<SellerDashboardPage />} />
+          <Route path="/store/:sellerId" element={<StorePage />} />
+          <Route path="/favorites" element={<FavoritesPage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
         </Routes>
