@@ -21,13 +21,14 @@ export interface OrderCreateRequest {
   address?: string;
   city?: string;
   zip_code?: string;
+  payment_method?: string;
   items?: Array<{
     product_id: number;
     quantity: number;
   }>;
 }
 
-export type OrderStatus = 'pending' | 'paid' | 'shipped' | 'delivered' | 'cancelled';
+export type OrderStatus = 'PENDING' | 'PAID' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED' | 'pending' | 'paid' | 'shipped' | 'delivered' | 'cancelled';
 
 export interface OrderItem {
   id?: number;
@@ -47,6 +48,7 @@ export interface Order {
   address?: string;
   city?: string;
   zip_code?: string;
+  payment_method?: string;
   created_at: string;
   items: OrderItem[];
 }

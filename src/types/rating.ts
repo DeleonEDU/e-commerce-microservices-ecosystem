@@ -1,6 +1,7 @@
 export interface Review {
   id: number;
   user_id: number;
+  user_name?: string | null;
   product_id: number;
   rating: number;
   comment?: string | null;
@@ -9,6 +10,7 @@ export interface Review {
 
 export interface ReviewCreateRequest {
   user_id: number;
+  user_name?: string;
   product_id: number;
   rating: number;
   comment?: string;

@@ -10,6 +10,7 @@ export interface Product {
   brand?: string;
   description: string;
   price: number;
+  discount_price?: number;
   category: number;
   category_name: string;
   image_url?: string;
@@ -20,6 +21,8 @@ export interface Product {
   review_count?: number;
   seller_id: number;
   seller_name?: string;
+  seller_rating?: number;
+  seller_orders_count?: number;
   is_premium?: boolean;
   is_active?: boolean;
   created_at: string;
@@ -65,8 +68,10 @@ export interface CreateProductRequest {
   brand?: string;
   description: string;
   price: number;
+  discount_price?: number;
   category_id: number;
   image_url?: string;
+  images?: string[];
   stock: number;
   specifications?: Record<string, string>;
 }

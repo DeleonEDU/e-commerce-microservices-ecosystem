@@ -7,6 +7,9 @@ export interface User {
   role: UserRole;
   phone_number?: string;
   date_joined?: string;
+  store_name?: string;
+  store_description?: string;
+  store_logo?: string;
 }
 
 export interface AuthResponse {

@@ -21,6 +21,10 @@ export const authApiSlice = apiSlice.injectEndpoints({
       query: () => '/auth/users/profile/',
       providesTags: ['User'],
     }),
+    getSellerProfile: builder.query<User, number>({
+      query: (sellerId) => `/auth/users/sellers/${sellerId}/`,
+      providesTags: (result, error, id) => [{ type: 'User', id }],
+    }),
     updateProfile: builder.mutation<User, Partial<User>>({
       query: (userData) => ({
         url: '/auth/users/profile/',
@@ -32,4 +36,4 @@ export const authApiSlice = apiSlice.injectEndpoints({
   }),
 });
 
-export const { useLoginMutation, useRegisterMutation, useGetProfileQuery, useUpdateProfileMutation } = authApiSlice;
+export const { useLoginMutation, useRegisterMutation, useGetProfileQuery, useGetSellerProfileQuery, useUpdateProfileMutation } = authApiSlice;
