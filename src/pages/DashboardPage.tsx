@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { uk } from 'date-fns/locale';
+import { formatCurrency } from '../utils/format';
 import { RootState } from '../store/store';
 import { logout, setUser } from '../features/auth/authSlice';
 import Button from '../components/ui/Button';
@@ -31,9 +32,39 @@ import type { OrderStatus } from '../types/order';
 import OrderProductItem from '../components/OrderProductItem';
 
 const statusPresentation: Record<
-  OrderStatus,
+  string,
   { label: string; icon: typeof Clock; color: string; bg: string }
 > = {
+  PENDING: {
+    label: 'Обробляється',
+    icon: Clock,
+    color: 'text-amber-500',
+    bg: 'bg-amber-50',
+  },
+  PAID: {
+    label: 'Оплачено, обробка',
+    icon: CreditCard,
+    color: 'text-sky-600',
+    bg: 'bg-sky-50',
+  },
+  SHIPPED: {
+    label: 'Комплектується',
+    icon: Package,
+    color: 'text-indigo-500',
+    bg: 'bg-indigo-50',
+  },
+  DELIVERED: {
+    label: 'Доставлено',
+    icon: CheckCircle2,
+    color: 'text-emerald-500',
+    bg: 'bg-emerald-50',
+  },
+  CANCELLED: {
+    label: 'Скасовано',
+    icon: Ban,
+    color: 'text-rose-500',
+    bg: 'bg-rose-50',
+  },
   pending: {
     label: 'Обробляється',
     icon: Clock,
@@ -199,7 +230,7 @@ const DashboardPage: React.FC = () => {
   const totalOrders = validOrders.length;
   const deliveredCount = validOrders.filter((o) => {
     const isAnyDelivered = Array.isArray(o?.items) ? o?.items?.some((i: any) => i?.is_delivered) : false;
-    return isAnyDelivered || o?.status === 'delivered';
+    return isAnyDelivered || o?.status === 'delivered' || o?.status === 'DELIVERED';
   }).length;
   const inProgressCount = validOrders.filter((o) => {
     const isAnyDelivered = Array.isArray(o?.items) ? o?.items?.some((i: any) => i?.is_delivered) : false;
@@ -427,33 +458,47 @@ const DashboardPage: React.FC = () => {
                               ? '—'
                               : format(created, 'd MMMM yyyy, HH:mm', { locale: uk });
                             return (
-                              <tr key={order?.id} className="hover:bg-slate-50/30 transition-colors cursor-pointer" onClick={() => setSelectedOrderDetails(order)}>
-                                <td className="px-8 py-6 font-bold text-slate-900">#{order?.id}</td>
-                                <td className="px-8 py-6 text-slate-500 font-medium capitalize">{dateLabel}</td>
-                                <td className="px-8 py-6 font-extrabold text-slate-900">
-                                  ${(order?.total_price || 0).toFixed(2)}
-                                </td>
-                                <td className="px-8 py-6">
-                                  <div
-                                    className={`inline-flex items-center gap-2 px-3 py-1 rounded-full ${sp.bg} ${sp.color} text-xs font-bold`}
-                                  >
-                                    <Icon size={14} />
-                                    {sp.label}
-                                  </div>
-                                </td>
-                                <td className="px-8 py-6 text-right">
-                                  <Button variant="ghost" size="sm" className="text-slate-400" onClick={(e) => {
-                                    e.stopPropagation();
-                                    setSelectedOrderDetails(order);
-                                  }}>Деталі</Button>
-                                </td>
-                              </tr>
+                          <tr key={order?.id} className="hover:bg-slate-50/30 transition-colors cursor-pointer group" onClick={() => setSelectedOrderDetails(order)}>
+                            <td className="px-8 py-6 font-bold text-slate-900">#{order?.id}</td>
+                            <td className="px-8 py-6 text-slate-500 font-medium capitalize">{dateLabel}</td>
+                            <td className="px-8 py-6 font-extrabold text-slate-900">
+                              {formatCurrency(order?.total_price || 0)}
+                            </td>
+                            <td className="px-8 py-6">
+                              <div
+                                className={`inline-flex items-center gap-2 px-3 py-1 rounded-full ${sp.bg} ${sp.color} text-xs font-bold`}
+                              >
+                                <Icon size={14} />
+                                {sp.label}
+                              </div>
+                            </td>
+                            <td className="px-8 py-6 text-right">
+                              <Button variant="ghost" size="sm" className="text-slate-400 group-hover:text-brand-600 transition-colors" onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedOrderDetails(order);
+                              }}>Деталі</Button>
+                            </td>
+                          </tr>
                             );
                           })}
                         </tbody>
                       </table>
                     )}
                   </div>
+                  
+                  {/* Pagination for Orders */}
+                  {activeTab === 'orders' && validOrders.length > 0 && (
+                    <div className="p-4 border-t border-slate-100 flex items-center justify-between bg-slate-50/50">
+                      <div className="text-sm text-slate-500 font-medium">
+                        Всього замовлень: <span className="font-bold text-slate-900">{validOrders.length}</span>
+                      </div>
+                      {/* Placeholder for actual pagination if needed in the future */}
+                      <div className="flex items-center gap-2">
+                        <Button variant="outline" size="sm" disabled className="text-slate-400 border-slate-200">Попередня</Button>
+                        <Button variant="outline" size="sm" disabled className="text-slate-400 border-slate-200">Наступна</Button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             )}
@@ -482,6 +527,7 @@ const DashboardPage: React.FC = () => {
                         <thead>
                           <tr className="bg-slate-50/50">
                             <th className="px-8 py-5 text-xs font-bold text-slate-400 uppercase tracking-widest">ID Платежу</th>
+                            <th className="px-8 py-5 text-xs font-bold text-slate-400 uppercase tracking-widest">Деталі</th>
                             <th className="px-8 py-5 text-xs font-bold text-slate-400 uppercase tracking-widest">Дата</th>
                             <th className="px-8 py-5 text-xs font-bold text-slate-400 uppercase tracking-widest">Сума</th>
                             <th className="px-8 py-5 text-xs font-bold text-slate-400 uppercase tracking-widest">Статус</th>
@@ -499,11 +545,29 @@ const DashboardPage: React.FC = () => {
                             const isFailed = payment?.status === 'failed';
                             
                             return (
-                              <tr key={payment?.id} className="hover:bg-slate-50/30 transition-colors cursor-pointer" onClick={() => setSelectedPaymentDetails(payment)}>
+                              <tr key={payment?.id} className="hover:bg-slate-50/30 transition-colors cursor-pointer group" onClick={() => setSelectedPaymentDetails(payment)}>
                                 <td className="px-8 py-6 font-bold text-slate-900">#{payment?.id}</td>
+                                <td className="px-8 py-6">
+                                  <div className="text-sm font-bold text-slate-900">
+                                    Замовлення #{payment?.order_id}
+                                  </div>
+                                  <div className="text-xs text-slate-500 mt-1">
+                                    {(() => {
+                                      const order = Array.isArray(orders) ? orders.find((o) => o.id === payment?.order_id) : null;
+                                      if (!order || !Array.isArray(order.items)) return '—';
+                                      const count = order.items.length;
+                                      const mod10 = count % 10;
+                                      const mod100 = count % 100;
+                                      let word = 'товарів';
+                                      if (mod10 === 1 && mod100 !== 11) word = 'товар';
+                                      else if ([2, 3, 4].includes(mod10) && ![12, 13, 14].includes(mod100)) word = 'товари';
+                                      return `${count} ${word}`;
+                                    })()}
+                                  </div>
+                                </td>
                                 <td className="px-8 py-6 text-slate-500 font-medium capitalize">{dateLabel}</td>
                                 <td className="px-8 py-6 font-extrabold text-slate-900">
-                                  ${(payment?.amount || 0).toFixed(2)}
+                                  {formatCurrency(payment?.amount || 0)}
                                 </td>
                                 <td className="px-8 py-6">
                                   <div
@@ -514,11 +578,11 @@ const DashboardPage: React.FC = () => {
                                     }`}
                                   >
                                     {isCompleted ? <CheckCircle2 size={14} /> : isFailed ? <Ban size={14} /> : <Clock size={14} />}
-                                    {isCompleted ? 'Успішно' : isFailed ? 'Помилка' : 'В обробці'}
+                                    {isCompleted ? 'Оплачено' : isFailed ? 'Помилка' : 'В обробці'}
                                   </div>
                                 </td>
                                 <td className="px-8 py-6 text-right">
-                                  <Button variant="ghost" size="sm" className="rounded-xl">Деталі</Button>
+                                  <Button variant="ghost" size="sm" className="rounded-xl text-slate-400 group-hover:text-brand-600 transition-colors">Деталі</Button>
                                 </td>
                               </tr>
                             );
@@ -527,6 +591,20 @@ const DashboardPage: React.FC = () => {
                       </table>
                     )}
                   </div>
+                  
+                  {/* Pagination for Payments */}
+                  {activeTab === 'payments' && Array.isArray(payments) && payments.length > 0 && (
+                    <div className="p-4 border-t border-slate-100 flex items-center justify-between bg-slate-50/50">
+                      <div className="text-sm text-slate-500 font-medium">
+                        Всього платежів: <span className="font-bold text-slate-900">{payments.length}</span>
+                      </div>
+                      {/* Placeholder for actual pagination if needed in the future */}
+                      <div className="flex items-center gap-2">
+                        <Button variant="outline" size="sm" disabled className="text-slate-400 border-slate-200">Попередня</Button>
+                        <Button variant="outline" size="sm" disabled className="text-slate-400 border-slate-200">Наступна</Button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             )}
@@ -812,7 +890,7 @@ const DashboardPage: React.FC = () => {
               
               <div className="flex justify-between items-center pt-4 border-t border-slate-100">
                 <span className="font-bold text-slate-500">Загальна сума</span>
-                <span className="text-2xl font-extrabold text-brand-600">${(selectedOrderDetails?.total_price || 0).toFixed(2)}</span>
+                <span className="text-2xl font-extrabold text-brand-600">{formatCurrency(selectedOrderDetails?.total_price || 0)}</span>
               </div>
             </div>
 
@@ -836,7 +914,7 @@ const DashboardPage: React.FC = () => {
                 }`}
               >
                 {selectedPaymentDetails?.status === 'completed' ? <CheckCircle2 size={14} /> : selectedPaymentDetails?.status === 'failed' ? <Ban size={14} /> : <Clock size={14} />}
-                {selectedPaymentDetails?.status === 'completed' ? 'Успішно' : selectedPaymentDetails?.status === 'failed' ? 'Помилка' : 'В обробці'}
+                {selectedPaymentDetails?.status === 'completed' ? 'Оплачено' : selectedPaymentDetails?.status === 'failed' ? 'Помилка' : 'В обробці'}
               </div>
             </div>
 
@@ -873,9 +951,34 @@ const DashboardPage: React.FC = () => {
                 </div>
               </div>
 
+              {(() => {
+                const order = Array.isArray(orders) ? orders.find((o) => o.id === selectedPaymentDetails?.order_id) : null;
+                if (order && Array.isArray(order.items) && order.items.length > 0) {
+                  return (
+                    <div className="mt-4">
+                      <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Оплачені товари</h4>
+                      <div className="space-y-2 max-h-[200px] overflow-y-auto pr-1 no-scrollbar">
+                        {order.items.map((item: any, idx: number) => (
+                          <OrderProductItem 
+                            key={idx} 
+                            productId={item.product_id} 
+                            quantity={item.quantity} 
+                            price={item.price} 
+                            isApproved={item.is_approved}
+                            isDelivered={item.is_delivered}
+                            orderStatus={order.status}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  );
+                }
+                return null;
+              })()}
+
               <div className="flex justify-between items-center p-4 bg-brand-50 rounded-2xl border border-brand-100">
                 <span className="font-bold text-brand-900">Сума платежу</span>
-                <span className="text-2xl font-extrabold text-brand-600">${(selectedPaymentDetails?.amount || 0).toFixed(2)}</span>
+                <span className="text-2xl font-extrabold text-brand-600">{formatCurrency(selectedPaymentDetails?.amount || 0)}</span>
               </div>
             </div>
 

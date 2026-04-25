@@ -1,13 +1,15 @@
-import React, { useState, useMemo } from 'react';
-import { X, Search, ArrowUpDown, Package, Edit2, Trash2, ExternalLink, TrendingUp, AlertCircle } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { X, Search, ArrowUpDown, Package, Edit2, Trash2, ExternalLink, TrendingUp, AlertCircle, Loader2 } from 'lucide-react';
 import Button from './ui/Button';
 import { Product } from '../types/product';
 import { Link } from 'react-router-dom';
+import { formatCurrency, formatNumber } from '../utils/format';
+import { useGetSellerProductsQuery } from '../api/productApiSlice';
 
 interface ProductsManagementModalProps {
   isOpen: boolean;
   onClose: () => void;
-  products: Product[];
+  sellerId: number;
   onEdit: (product: Product) => void;
   onDelete: (id: number) => void;
   onAddNew: () => void;
@@ -20,67 +22,53 @@ type FilterStock = 'all' | 'in_stock' | 'low_stock' | 'out_of_stock';
 const ProductsManagementModal: React.FC<ProductsManagementModalProps> = ({
   isOpen,
   onClose,
-  products,
+  sellerId,
   onEdit,
   onDelete,
   onAddNew,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [filterStock, setFilterStock] = useState<FilterStock>('all');
   const [sortField, setSortField] = useState<SortField>('name');
   const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
-  const handleSort = (field: SortField) => {
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchTerm);
+      setCurrentPage(1); // Reset page on search
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
+  const handleSort = useCallback((field: SortField) => {
     if (sortField === field) {
       setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
     } else {
       setSortField(field);
       setSortOrder(field === 'name' ? 'asc' : 'desc');
     }
-  };
+    setCurrentPage(1);
+  }, [sortField, sortOrder]);
 
-  const filteredAndSortedProducts = useMemo(() => {
-    let result = [...products];
+  // Reset page when filters change
+  React.useEffect(() => {
+    setCurrentPage(1);
+  }, [filterStock, sortField, sortOrder]);
 
-    // Filter by search
-    if (searchTerm) {
-      const lowerSearch = searchTerm.toLowerCase();
-      result = result.filter(
-        (p) =>
-          p.name.toLowerCase().includes(lowerSearch) ||
-          (p.brand && p.brand.toLowerCase().includes(lowerSearch)) ||
-          p.category_name?.toLowerCase().includes(lowerSearch)
-      );
-    }
+  const { data: productsData, isLoading, isFetching } = useGetSellerProductsQuery({
+    seller_id: sellerId,
+    page: currentPage,
+    search: debouncedSearch || undefined,
+    stock_filter: filterStock !== 'all' ? filterStock : undefined,
+    ordering: sortOrder === 'desc' ? `-${sortField}` : sortField,
+  }, { skip: !isOpen || !sellerId });
 
-    // Filter by stock
-    if (filterStock !== 'all') {
-      result = result.filter((p) => {
-        if (filterStock === 'in_stock') return p.stock > 10;
-        if (filterStock === 'low_stock') return p.stock > 0 && p.stock <= 10;
-        if (filterStock === 'out_of_stock') return p.stock === 0;
-        return true;
-      });
-    }
-
-    // Sort
-    result.sort((a, b) => {
-      let comparison = 0;
-      if (sortField === 'name') {
-        comparison = a.name.localeCompare(b.name);
-      } else if (sortField === 'price') {
-        comparison = a.price - b.price;
-      } else if (sortField === 'stock') {
-        comparison = a.stock - b.stock;
-      } else if (sortField === 'rating') {
-        comparison = (a.rating || 0) - (b.rating || 0);
-      }
-
-      return sortOrder === 'asc' ? comparison : -comparison;
-    });
-
-    return result;
-  }, [products, searchTerm, filterStock, sortField, sortOrder]);
+  const products = productsData?.results || [];
+  const totalItems = productsData?.count || 0;
+  const totalPages = Math.ceil(totalItems / itemsPerPage);
 
   if (!isOpen) return null;
 
@@ -180,8 +168,18 @@ const ProductsManagementModal: React.FC<ProductsManagementModalProps> = ({
                     <th className="px-6 py-5 text-[11px] font-bold text-slate-400 uppercase tracking-widest text-right">Дії</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-50">
-                  {filteredAndSortedProducts.length === 0 ? (
+                <tbody className="divide-y divide-slate-50 relative">
+                  {isLoading && (
+                    <tr>
+                      <td colSpan={6} className="px-6 py-24 text-center">
+                        <div className="flex flex-col items-center justify-center text-slate-400">
+                          <Loader2 className="mb-4 animate-spin text-brand-500" size={48} />
+                          <p className="text-lg font-bold text-slate-900 mb-1">Завантаження товарів...</p>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                  {!isLoading && products.length === 0 ? (
                     <tr>
                       <td colSpan={6} className="px-6 py-24 text-center">
                         <div className="flex flex-col items-center justify-center text-slate-400">
@@ -192,7 +190,7 @@ const ProductsManagementModal: React.FC<ProductsManagementModalProps> = ({
                       </td>
                     </tr>
                   ) : (
-                    filteredAndSortedProducts.map((product) => (
+                    !isLoading && products.map((product) => (
                       <tr key={product.id} className="hover:bg-slate-50/50 transition-colors group">
                         <td className="px-6 py-5">
                           <div className="flex items-center gap-4">
@@ -217,7 +215,7 @@ const ProductsManagementModal: React.FC<ProductsManagementModalProps> = ({
                           </span>
                         </td>
                         <td className="px-6 py-5">
-                          <div className="font-extrabold text-slate-900">${product.price.toFixed(2)}</div>
+                          <div className="font-extrabold text-slate-900">{formatCurrency(product.price)}</div>
                         </td>
                         <td className="px-6 py-5">
                           <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold ${
@@ -225,7 +223,7 @@ const ProductsManagementModal: React.FC<ProductsManagementModalProps> = ({
                             product.stock <= 10 ? 'bg-amber-50 text-amber-600' : 
                             'bg-emerald-50 text-emerald-600'
                           }`}>
-                            {product.stock} шт.
+                            {formatNumber(product.stock)} шт.
                           </div>
                         </td>
                         <td className="px-6 py-5">
@@ -235,12 +233,12 @@ const ProductsManagementModal: React.FC<ProductsManagementModalProps> = ({
                           </div>
                         </td>
                         <td className="px-6 py-5 text-right">
-                          <div className="flex flex-wrap items-center justify-end gap-2">
+                          <div className="flex items-center justify-end gap-2">
                             <Button
                               type="button"
                               variant="outline"
                               size="sm"
-                              className="rounded-xl h-9 px-3 text-xs font-bold gap-1.5 border-slate-200 shadow-sm"
+                              className="rounded-xl h-9 px-3 text-xs font-bold gap-1.5 border-slate-200 shadow-sm hover:border-brand-300 hover:text-brand-600"
                               onClick={() => onEdit(product)}
                             >
                               <Edit2 size={14} />
@@ -249,8 +247,8 @@ const ProductsManagementModal: React.FC<ProductsManagementModalProps> = ({
                             <Link
                               to={`/product/${product.id}`}
                               target="_blank"
-                              className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 text-slate-400 hover:text-brand-600 hover:border-brand-200 transition-colors shadow-sm bg-white"
-                              title="У новій вкладці"
+                              className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 text-slate-400 hover:text-brand-600 hover:border-brand-200 hover:bg-brand-50 transition-colors shadow-sm bg-white"
+                              title="Відкрити сторінку товару"
                             >
                               <ExternalLink size={16} />
                             </Link>
@@ -258,7 +256,7 @@ const ProductsManagementModal: React.FC<ProductsManagementModalProps> = ({
                               type="button"
                               onClick={() => onDelete(product.id)}
                               className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 text-slate-400 hover:text-rose-500 hover:border-rose-200 hover:bg-rose-50 transition-colors shadow-sm bg-white"
-                              title="Видалити"
+                              title="Видалити товар"
                             >
                               <Trash2 size={16} />
                             </button>
@@ -270,6 +268,38 @@ const ProductsManagementModal: React.FC<ProductsManagementModalProps> = ({
                 </tbody>
               </table>
             </div>
+            
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="p-4 border-t border-slate-100 bg-slate-50/50 flex items-center justify-between">
+                <span className="text-sm text-slate-500 font-medium">
+                  Показано {((currentPage - 1) * itemsPerPage) + 1}-{Math.min(currentPage * itemsPerPage, totalItems)} з {totalItems}
+                </span>
+                <div className="flex items-center gap-3">
+                  {isFetching && !isLoading && <span className="text-xs font-bold text-slate-400">Оновлення...</span>}
+                  <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                    disabled={currentPage === 1 || isLoading || isFetching}
+                    className="bg-white"
+                  >
+                    Попередня
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                    disabled={currentPage === totalPages || isLoading || isFetching}
+                    className="bg-white"
+                  >
+                    Наступна
+                  </Button>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -277,4 +307,4 @@ const ProductsManagementModal: React.FC<ProductsManagementModalProps> = ({
   );
 };
 
-export default ProductsManagementModal;
+export default React.memo(ProductsManagementModal);

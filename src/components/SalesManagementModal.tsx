@@ -1,9 +1,10 @@
-import React, { useState, useMemo } from 'react';
-import { X, Search, Filter, ArrowUpDown, Package, CheckCircle2, Clock, Map, TrendingUp } from 'lucide-react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import { X, Search, ArrowUpDown, Package, CheckCircle2, Clock, MapPin } from 'lucide-react';
 import Button from './ui/Button';
-import TableRowProduct from './TableRowProduct';
 import { format } from 'date-fns';
 import { uk } from 'date-fns/locale';
+import { formatCurrency } from '../utils/format';
+import { useGetBulkProductsQuery } from '../api/productApiSlice';
 
 interface SalesManagementModalProps {
   isOpen: boolean;
@@ -27,25 +28,41 @@ const SalesManagementModal: React.FC<SalesManagementModalProps> = ({
   onViewDetails,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState<FilterStatus>('all');
   const [sortField, setSortField] = useState<SortField>('date');
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
-  const handleSort = (field: SortField) => {
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchTerm);
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
+  const handleSort = useCallback((field: SortField) => {
     if (sortField === field) {
       setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
     } else {
       setSortField(field);
       setSortOrder('desc');
     }
-  };
+  }, [sortField, sortOrder]);
+
+  // Reset page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [debouncedSearch, filterStatus, sortField, sortOrder]);
 
   const filteredAndSortedSales = useMemo(() => {
     let result = [...sales];
 
     // Filter by search
-    if (searchTerm) {
-      const lowerSearch = searchTerm.toLowerCase();
+    if (debouncedSearch) {
+      const lowerSearch = debouncedSearch.toLowerCase();
       result = result.filter(
         (sale) =>
           sale.id.toString().includes(lowerSearch) ||
@@ -88,7 +105,34 @@ const SalesManagementModal: React.FC<SalesManagementModalProps> = ({
     });
 
     return result;
-  }, [sales, searchTerm, filterStatus, sortField, sortOrder]);
+  }, [sales, debouncedSearch, filterStatus, sortField, sortOrder]);
+
+  const paginatedSales = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    return filteredAndSortedSales.slice(startIndex, startIndex + itemsPerPage);
+  }, [filteredAndSortedSales, currentPage]);
+
+  const visibleProductIds = useMemo(
+    () => Array.from(new Set(paginatedSales.map((sale) => sale.product_id).filter(Boolean))),
+    [paginatedSales]
+  );
+
+  const { data: bulkProducts, isFetching: isFetchingProducts } = useGetBulkProductsQuery(visibleProductIds, {
+    skip: !isOpen || visibleProductIds.length === 0,
+  });
+
+  const productsMap = useMemo(() => {
+    const productMap = new globalThis.Map<number, { name: string; image_url?: string }>();
+    bulkProducts?.forEach((product) => {
+      productMap.set(product.id, {
+        name: product.name || `Товар #${product.id}`,
+        image_url: product.image_url || undefined,
+      });
+    });
+    return productMap;
+  }, [bulkProducts]);
+
+  const totalPages = Math.ceil(filteredAndSortedSales.length / itemsPerPage);
 
   if (!isOpen) return null;
 
@@ -180,7 +224,7 @@ const SalesManagementModal: React.FC<SalesManagementModalProps> = ({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-50">
-                  {filteredAndSortedSales.length === 0 ? (
+                  {paginatedSales.length === 0 ? (
                     <tr>
                       <td colSpan={6} className="px-6 py-24 text-center">
                         <div className="flex flex-col items-center justify-center text-slate-400">
@@ -191,7 +235,7 @@ const SalesManagementModal: React.FC<SalesManagementModalProps> = ({
                       </td>
                     </tr>
                   ) : (
-                    filteredAndSortedSales.map((sale) => (
+                    paginatedSales.map((sale) => (
                       <tr key={sale.id} className="hover:bg-slate-50/50 transition-colors group">
                         <td className="px-6 py-5">
                           <div className="text-sm font-bold text-slate-900">
@@ -203,18 +247,33 @@ const SalesManagementModal: React.FC<SalesManagementModalProps> = ({
                           <div className="text-[10px] font-bold text-slate-300 mt-1 uppercase">#{sale.id}</div>
                         </td>
                         <td className="px-6 py-5">
-                          <TableRowProduct productId={sale.product_id} />
-                          <div className="text-xs font-bold text-slate-500 mt-2">{sale.quantity} шт. × ${sale.price.toFixed(2)}</div>
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 object-cover rounded-lg shadow-sm border border-slate-200 bg-slate-100 overflow-hidden">
+                              {productsMap.get(sale.product_id)?.image_url ? (
+                                <img
+                                  src={productsMap.get(sale.product_id)?.image_url}
+                                  alt={productsMap.get(sale.product_id)?.name || `Товар #${sale.product_id}`}
+                                  className="w-full h-full object-cover"
+                                />
+                              ) : (
+                                <div className="w-full h-full" />
+                              )}
+                            </div>
+                            <span className="font-medium text-slate-900 line-clamp-1 max-w-[220px]" title={productsMap.get(sale.product_id)?.name || `Товар #${sale.product_id}`}>
+                              {productsMap.get(sale.product_id)?.name || `Товар #${sale.product_id}`}
+                            </span>
+                          </div>
+                          <div className="text-xs font-bold text-slate-500 mt-2">{sale.quantity} шт. × {formatCurrency(sale.price)}</div>
                         </td>
                         <td className="px-6 py-5">
                           <div className="text-sm font-bold text-slate-900">{sale.order?.full_name || 'Не вказано'}</div>
                           <div className="text-xs font-medium text-slate-500 flex items-center gap-1 mt-1">
-                            <Map size={12} /> {sale.order?.city || 'Місто не вказане'}
+                            <MapPin size={12} /> {sale.order?.city || 'Місто не вказане'}
                           </div>
                         </td>
                         <td className="px-6 py-5 text-right">
-                          <div className="text-base font-extrabold text-brand-600">${(sale.price * sale.quantity).toFixed(2)}</div>
-                          {sale.order?.status === 'paid' || sale.order?.status === 'shipped' || sale.order?.status === 'delivered' ? (
+                          <div className="text-base font-extrabold text-brand-600">{formatCurrency(sale.price * sale.quantity)}</div>
+                          {sale.order?.status === 'paid' || sale.order?.status === 'PAID' || sale.order?.status === 'shipped' || sale.order?.status === 'SHIPPED' || sale.order?.status === 'delivered' || sale.order?.status === 'DELIVERED' ? (
                             <div className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md mt-1">
                               <CheckCircle2 size={10} /> Оплачено
                             </div>
@@ -237,11 +296,11 @@ const SalesManagementModal: React.FC<SalesManagementModalProps> = ({
                         <td className="px-6 py-5">
                           <div className="flex flex-col items-center justify-center gap-2">
                             {!sale.is_approved ? (
-                              <Button size="sm" className="w-full text-xs shadow-sm" onClick={() => onApprove(sale.id)}>
+                              <Button size="sm" className="w-full text-xs shadow-sm" onClick={() => onApprove(sale.id)} disabled={sale.order?.status === 'pending' || sale.order?.status === 'PENDING'}>
                                 Підтвердити
                               </Button>
                             ) : !sale.is_delivered ? (
-                              <Button size="sm" variant="outline" className="w-full text-xs border-indigo-200 text-indigo-600 hover:bg-indigo-50" onClick={() => onDeliver(sale.id)}>
+                              <Button size="sm" variant="outline" className="w-full text-xs border-indigo-200 text-indigo-600 hover:bg-indigo-50" onClick={() => onDeliver(sale.id)} disabled={sale.order?.status === 'pending' || sale.order?.status === 'PENDING'}>
                                 Доставити
                               </Button>
                             ) : (
@@ -263,6 +322,38 @@ const SalesManagementModal: React.FC<SalesManagementModalProps> = ({
                 </tbody>
               </table>
             </div>
+            
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="p-4 border-t border-slate-100 bg-slate-50/50 flex items-center justify-between">
+                <span className="text-sm text-slate-500 font-medium">
+                  Показано {((currentPage - 1) * itemsPerPage) + 1}-{Math.min(currentPage * itemsPerPage, filteredAndSortedSales.length)} з {filteredAndSortedSales.length}
+                </span>
+                <div className="flex items-center gap-3">
+                  {isFetchingProducts && <span className="text-xs font-bold text-slate-400">Оновлення товарів...</span>}
+                  <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                    className="bg-white"
+                  >
+                    Попередня
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                    disabled={currentPage === totalPages}
+                    className="bg-white"
+                  >
+                    Наступна
+                  </Button>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -270,4 +361,4 @@ const SalesManagementModal: React.FC<SalesManagementModalProps> = ({
   );
 };
 
-export default SalesManagementModal;
+export default React.memo(SalesManagementModal);

@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { X, Loader2, Upload, Package, DollarSign, Tag, Info, Layers, Plus, Trash2 } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { X, Upload, Package, DollarSign, Tag, Info, Layers, Plus, Trash2 } from 'lucide-react';
 import { Category, Product, CreateProductRequest, UpdateProductRequest } from '../types/product';
 import { useGetCategoriesQuery } from '../api/productApiSlice';
 import Button from './ui/Button';
@@ -21,11 +21,13 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
 }) => {
   const { data: categories } = useGetCategoriesQuery();
   const [specs, setSpecs] = useState<Array<{key: string, value: string}>>([]);
+  const [images, setImages] = useState<string[]>(['']);
   const [formData, setFormData] = useState({
     name: '',
     brand: '',
     description: '',
     price: '',
+    discount_price: '',
     category_id: '',
     image_url: '',
     stock: '',
@@ -39,10 +41,18 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
         brand: product.brand || '',
         description: product.description,
         price: product.price.toString(),
+        discount_price: product.discount_price ? product.discount_price.toString() : '',
         category_id: product.category != null ? String(product.category) : '',
         image_url: product.image_url || '',
         stock: product.stock.toString(),
       });
+      const existingImages = (product.images && product.images.length > 0)
+        ? product.images
+        : [product.image_url || ''].filter(Boolean);
+      const normalized = existingImages
+        .map((img) => img.trim())
+        .filter((img, idx, arr) => Boolean(img) && arr.indexOf(img) === idx);
+      setImages(normalized.length > 0 ? normalized : ['']);
       
       if (product.specifications && typeof product.specifications === 'object') {
         const specArr = Object.entries(product.specifications).map(([key, value]) => ({
@@ -59,11 +69,13 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
         brand: '',
         description: '',
         price: '',
+        discount_price: '',
         category_id: '',
         image_url: '',
         stock: '',
       });
       setSpecs([{key: '', value: ''}]);
+      setImages(['']);
     }
   }, [product, isOpen]);
 
@@ -103,6 +115,24 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
     setSpecs(newSpecs);
   };
 
+  const addImage = () => setImages((prev) => [...prev, '']);
+
+  const removeImage = (index: number) => {
+    setImages((prev) => {
+      const next = prev.filter((_, i) => i !== index);
+      return next.length > 0 ? next : [''];
+    });
+  };
+
+  const updateImage = (index: number, val: string) => {
+    setImages((prev) => prev.map((img, i) => (i === index ? val : img)));
+  };
+
+  const normalizedImages = useMemo(
+    () => images.map((img) => img.trim()).filter((img, idx, arr) => Boolean(img) && arr.indexOf(img) === idx),
+    [images]
+  );
+
   useEffect(() => {
     if (!isOpen) return;
     const onKey = (e: KeyboardEvent) => {
@@ -126,7 +156,10 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
 
     const data = {
       ...formData,
+      image_url: normalizedImages[0] || '',
+      images: normalizedImages,
       price: parseFloat(formData.price),
+      discount_price: formData.discount_price ? parseFloat(formData.discount_price) : undefined,
       stock: parseInt(formData.stock),
       category_id: parseInt(formData.category_id),
       specifications: specsObj,
@@ -213,6 +246,21 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
               />
             </div>
 
+            {/* Discount Price */}
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1 flex items-center gap-2">
+                <Tag size={14} /> Акційна ціна ($)
+              </label>
+              <input 
+                type="number" 
+                step="0.01"
+                placeholder="799.99 (опціонально)"
+                className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:ring-4 focus:ring-brand-500/20 focus:border-brand-500 outline-none transition-all font-medium shadow-sm hover:border-slate-300"
+                value={formData.discount_price}
+                onChange={(e) => setFormData({...formData, discount_price: e.target.value})}
+              />
+            </div>
+
             {/* Stock */}
             <div className="space-y-2">
               <label className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1 flex items-center gap-2">
@@ -231,16 +279,47 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
             {/* Image URL */}
             <div className="md:col-span-2 space-y-2">
               <label className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1 flex items-center gap-2">
-                <Upload size={14} /> URL зображення
+                <Upload size={14} /> Фото товару (перше = головне в каталозі)
               </label>
-              <input 
-                type="text" 
-                inputMode="url"
-                placeholder="https://…"
-                className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:ring-4 focus:ring-brand-500/20 focus:border-brand-500 outline-none transition-all font-medium shadow-sm hover:border-slate-300"
-                value={formData.image_url}
-                onChange={(e) => setFormData({...formData, image_url: e.target.value})}
-              />
+              <div className="space-y-3">
+                {images.map((img, idx) => (
+                  <div key={idx} className="flex items-center gap-3">
+                    <input
+                      type="text"
+                      inputMode="url"
+                      placeholder={idx === 0 ? 'https://... (головне фото)' : 'https://... (додаткове фото)'}
+                      className="flex-1 px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:ring-4 focus:ring-brand-500/20 focus:border-brand-500 outline-none transition-all font-medium shadow-sm hover:border-slate-300"
+                      value={img}
+                      onChange={(e) => updateImage(idx, e.target.value)}
+                    />
+                    {idx > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => removeImage(idx)}
+                        className="p-3 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-all"
+                        title="Видалити фото"
+                      >
+                        <Trash2 size={18} />
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+              <div className="flex gap-3">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="gap-2"
+                  onClick={addImage}
+                >
+                  <Plus size={16} />
+                  Додати фото
+                </Button>
+                <span className="text-xs text-slate-500 self-center">
+                  Перше фото завжди використовується як головне в каталозі.
+                </span>
+              </div>
             </div>
 
             {/* Description */}

@@ -6,7 +6,9 @@ interface TableRowProductProps {
 }
 
 const TableRowProduct: React.FC<TableRowProductProps> = ({ productId }) => {
-  const { data: product, isLoading } = useGetProductQuery(productId);
+  const { data: product, isLoading } = useGetProductQuery(productId, {
+    skip: !productId,
+  });
 
   if (isLoading) {
     return <span className="text-slate-400 animate-pulse">Завантаження...</span>;
@@ -30,4 +32,4 @@ const TableRowProduct: React.FC<TableRowProductProps> = ({ productId }) => {
   );
 };
 
-export default TableRowProduct;
+export default React.memo(TableRowProduct);

@@ -21,11 +21,44 @@ import { useCreateOrderMutation } from '../api/orderApiSlice';
 import { useCreatePaymentIntentMutation, useConfirmPaymentMutation } from '../api/paymentApiSlice';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js';
+import { formatCurrency } from '../utils/format';
 
 // TODO: Replace with env variable if needed
 const stripePromise = loadStripe('pk_test_51TPMQsH8SpgjaGIVWO9vvxqj1HdDi3ZgVpzUQpj0r9EAr6hAbEKjwAPoxS9Cl6xTYBl7BqC4smgyffEHuIv8PmXd00mN5NUNfe');
 
 type CheckoutStep = 'shipping' | 'payment' | 'confirmation' | 'stripe' | 'success';
+
+const stripeAppearance = {
+  theme: 'stripe' as const,
+  variables: {
+    colorPrimary: '#4f46e5', // brand-600
+    colorBackground: '#ffffff',
+    colorText: '#0f172a', // slate-900
+    colorDanger: '#e11d48', // rose-600
+    fontFamily: 'ui-sans-serif, system-ui, sans-serif',
+    spacingUnit: '4px',
+    borderRadius: '16px',
+  },
+  rules: {
+    '.Input': {
+      padding: '16px',
+      border: '1px solid #e2e8f0', // slate-200
+      boxShadow: 'none',
+    },
+    '.Input:focus': {
+      border: '1px solid #4f46e5',
+      boxShadow: '0 0 0 4px rgba(79, 70, 229, 0.1)',
+    },
+    '.Label': {
+      fontWeight: '700',
+      color: '#64748b', // slate-500
+      textTransform: 'uppercase',
+      letterSpacing: '0.05em',
+      fontSize: '0.75rem',
+      marginBottom: '8px',
+    }
+  }
+};
 
 const StripeCheckoutForm: React.FC<{
   clientSecret: string;
@@ -76,13 +109,11 @@ const StripeCheckoutForm: React.FC<{
         </div>
       )}
       <div className="flex justify-between pt-6">
-        <Button type="button" variant="ghost" size="lg" className="gap-2 text-slate-400" onClick={onCancel} disabled={isProcessing}>
-          <ArrowLeft size={18} />
+        <Button type="button" variant="ghost" size="lg" className="text-slate-400" onClick={onCancel} disabled={isProcessing} leftIcon={<ArrowLeft size={18} />}>
           Назад
         </Button>
-        <Button type="submit" size="lg" className="px-12 shadow-soft gap-2" isLoading={isProcessing} disabled={!stripe || isProcessing}>
-          <Lock size={18} />
-          Оплатити ${totalAmount.toFixed(2)}
+        <Button type="submit" size="lg" className="px-12 shadow-soft" isLoading={isProcessing} disabled={!stripe || isProcessing} leftIcon={<Lock size={18} />}>
+          Оплатити {formatCurrency(totalAmount)}
         </Button>
       </div>
     </form>
@@ -135,6 +166,7 @@ const CheckoutPage: React.FC = () => {
         address: formData.address,
         city: formData.city,
         zip_code: formData.zipCode,
+        payment_method: formData.paymentMethod,
         items: orderItems
       }).unwrap();
       
@@ -274,9 +306,8 @@ const CheckoutPage: React.FC = () => {
                   </div>
                 </div>
                 <div className="mt-10 flex justify-end">
-                  <Button size="lg" className="px-10 gap-2" onClick={() => setStep('payment')}>
+                  <Button size="lg" className="px-10" onClick={() => setStep('payment')} rightIcon={<ChevronRight size={18} />}>
                     Далі до оплати
-                    <ChevronRight size={18} />
                   </Button>
                 </div>
               </div>
@@ -322,13 +353,11 @@ const CheckoutPage: React.FC = () => {
                   </button>
                 </div>
                 <div className="mt-10 flex justify-between">
-                  <Button variant="ghost" size="lg" className="gap-2 text-slate-400" onClick={() => setStep('shipping')}>
-                    <ArrowLeft size={18} />
+                  <Button variant="ghost" size="lg" className="text-slate-400" onClick={() => setStep('shipping')} leftIcon={<ArrowLeft size={18} />}>
                     Назад
                   </Button>
-                  <Button size="lg" className="px-10 gap-2" onClick={() => setStep('confirmation')}>
+                  <Button size="lg" className="px-10" onClick={() => setStep('confirmation')} rightIcon={<ChevronRight size={18} />}>
                     Далі до підтвердження
-                    <ChevronRight size={18} />
                   </Button>
                 </div>
               </div>
@@ -377,15 +406,14 @@ const CheckoutPage: React.FC = () => {
                           </div>
                           <span className="text-sm font-bold text-slate-900">{item.name} <span className="text-slate-400 font-medium">x{item.quantity}</span></span>
                         </div>
-                        <span className="text-sm font-extrabold text-slate-900">${(item.price * item.quantity).toFixed(2)}</span>
+                        <span className="text-sm font-extrabold text-slate-900">{formatCurrency(item.price * item.quantity)}</span>
                       </div>
                     ))}
                   </div>
                 </div>
 
                 <div className="flex justify-between">
-                  <Button variant="ghost" size="lg" className="gap-2 text-slate-400" onClick={() => setStep('payment')}>
-                    <ArrowLeft size={18} />
+                  <Button variant="ghost" size="lg" className="text-slate-400" onClick={() => setStep('payment')} leftIcon={<ArrowLeft size={18} />}>
                     Назад
                   </Button>
                   <Button size="lg" className="px-12 shadow-soft" onClick={handlePlaceOrder} isLoading={isPlacingOrder}>
@@ -402,7 +430,7 @@ const CheckoutPage: React.FC = () => {
                   Безпечна оплата
                 </h2>
                 
-                <Elements stripe={stripePromise} options={{ clientSecret, appearance: { theme: 'stripe' } }}>
+                <Elements stripe={stripePromise} options={{ clientSecret, appearance: stripeAppearance }}>
                   <StripeCheckoutForm 
                     clientSecret={clientSecret} 
                     onSuccess={handleStripeSuccess}
@@ -423,7 +451,7 @@ const CheckoutPage: React.FC = () => {
               <div className="space-y-4 mb-6 pb-6 border-b border-slate-50">
                 <div className="flex justify-between text-slate-500 text-sm font-medium">
                   <span>Сума ({cartItems.length} тов.)</span>
-                  <span className="text-slate-900 font-bold">${totalAmount.toFixed(2)}</span>
+                  <span className="text-slate-900 font-bold">{formatCurrency(totalAmount)}</span>
                 </div>
                 <div className="flex justify-between text-slate-500 text-sm font-medium">
                   <span>Доставка</span>
@@ -434,7 +462,7 @@ const CheckoutPage: React.FC = () => {
               <div className="flex justify-between items-end mb-8">
                 <div className="flex flex-col">
                   <span className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">Разом до оплати</span>
-                  <span className="text-3xl font-extrabold text-brand-600 tracking-tighter">${totalAmount.toFixed(2)}</span>
+                  <span className="text-3xl font-extrabold text-brand-600 tracking-tighter">{formatCurrency(totalAmount)}</span>
                 </div>
               </div>
 

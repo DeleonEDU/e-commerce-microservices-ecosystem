@@ -17,6 +17,7 @@ import {
 import { RootState } from '../store/store';
 import { removeItem, updateQuantity, clearCart, selectCartTotal, selectCartItemsCount } from '../features/cart/cartSlice';
 import Button from '../components/ui/Button';
+import { formatCurrency } from '../utils/format';
 
 const CartPage: React.FC = () => {
   const cartItems = useSelector((state: RootState) => state.cart.items);
@@ -138,10 +139,10 @@ const CartPage: React.FC = () => {
                 <div className="text-center sm:text-right sm:min-w-[120px]">
                   <div className="text-xs font-bold text-slate-300 uppercase tracking-widest mb-1">Ціна</div>
                   <div className="text-2xl font-extrabold text-slate-900 tracking-tight">
-                    ${(item.price * item.quantity).toFixed(2)}
+                    {formatCurrency(item.price * item.quantity)}
                   </div>
                   {item.quantity > 1 && (
-                    <div className="text-xs text-slate-400 font-medium">${item.price.toFixed(2)} за шт.</div>
+                    <div className="text-xs text-slate-400 font-medium">{formatCurrency(item.price)} за шт.</div>
                   )}
                 </div>
               </div>
@@ -161,7 +162,7 @@ const CartPage: React.FC = () => {
               <div className="space-y-4 mb-8 pb-8 border-b border-slate-50">
                 <div className="flex justify-between text-slate-500 font-medium">
                   <span>Сума товарів</span>
-                  <span className="text-slate-900 font-bold">${totalAmount.toFixed(2)}</span>
+                  <span className="text-slate-900 font-bold">{formatCurrency(totalAmount)}</span>
                 </div>
                 <div className="flex justify-between text-slate-500 font-medium">
                   <span>Доставка</span>
@@ -169,14 +170,14 @@ const CartPage: React.FC = () => {
                 </div>
                 <div className="flex justify-between text-slate-500 font-medium">
                   <span>Податки</span>
-                  <span className="text-slate-900 font-bold">$0.00</span>
+                  <span className="text-slate-900 font-bold">{formatCurrency(0)}</span>
                 </div>
               </div>
 
               <div className="flex justify-between items-end mb-10">
                 <div className="flex flex-col">
                   <span className="text-xs font-bold text-slate-300 uppercase tracking-widest">Загальна сума</span>
-                  <span className="text-4xl font-extrabold text-slate-900 tracking-tighter">${totalAmount.toFixed(2)}</span>
+                  <span className="text-4xl font-extrabold text-slate-900 tracking-tighter">{formatCurrency(totalAmount)}</span>
                 </div>
               </div>
 

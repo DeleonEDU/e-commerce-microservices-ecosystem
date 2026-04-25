@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import { useSelector } from 'react-redux';
 import { useNavigate, Link } from 'react-router-dom';
 import { 
@@ -17,7 +17,8 @@ import {
   CheckCircle2,
   Clock,
   Map,
-  X
+  X,
+  Settings
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { uk } from 'date-fns/locale';
@@ -30,12 +31,14 @@ import {
 } from '../api/productApiSlice';
 import { useGetSellerAnalyticsQuery, useApproveOrderItemMutation, useDeliverOrderItemMutation } from '../api/orderApiSlice';
 import { useGetSubscriptionQuery, useUpgradeSubscriptionMutation } from '../api/subscriptionApiSlice';
+import { useUpdateProfileMutation } from '../api/authApiSlice';
 import { useConfirmPaymentMutation } from '../api/paymentApiSlice';
 import Button from '../components/ui/Button';
 import ProductFormModal from '../components/ProductFormModal';
 import { Product } from '../types/product';
 import PaymentModal from '../components/PaymentModal';
 import AlertModal, { AlertType } from '../components/ui/AlertModal';
+import { formatCurrency, formatCompactNumber, formatNumber, formatCompactCurrency } from '../utils/format';
 
 import TableRowProduct from '../components/TableRowProduct';
 import SellerAnalyticsCharts from '../components/SellerAnalyticsCharts';
@@ -49,9 +52,8 @@ const SellerDashboardPage: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSalesModalOpen, setIsSalesModalOpen] = useState(false);
   const [isProductsModalOpen, setIsProductsModalOpen] = useState(false);
+  const [isStoreSettingsModalOpen, setIsStoreSettingsModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | undefined>(undefined);
-  const [searchTerm, setSearchTerm] = useState('');
-
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const [selectedTier, setSelectedTier] = useState<'plus' | 'pro' | 'vip'>('plus');
   const [selectedAmount, setSelectedAmount] = useState(0);
@@ -138,7 +140,7 @@ const SellerDashboardPage: React.FC = () => {
     } catch (e) {
       console.error('Failed to confirm payment:', e);
       setIsPaymentModalOpen(false);
-      showAlert('Увага', `Оплату прийнято, але виникла помилка при активації. Будь ласка, зачекайте.`, 'warning');
+      showAlert('Увага', `Оплату прийнято, але виникла помилка при активації. Будь ласка, зачекайте.`, 'info');
     }
   };
 
@@ -146,10 +148,29 @@ const SellerDashboardPage: React.FC = () => {
   const currentTier = subscription?.tier || 'free';
   const maxProducts = limits[currentTier as keyof typeof limits] || 10;
   const currentProductCount = productsData?.count || 0;
+  const products = productsData?.results || [];
 
   const [createProduct, { isLoading: isCreating }] = useCreateProductMutation();
   const [updateProduct, { isLoading: isUpdating }] = useUpdateProductMutation();
   const [deleteProduct] = useDeleteProductMutation();
+
+  const [updateProfile, { isLoading: isUpdatingProfile }] = useUpdateProfileMutation();
+  const [storeSettings, setStoreSettings] = useState({
+    store_name: user?.store_name || '',
+    store_description: user?.store_description || '',
+    store_logo: user?.store_logo || ''
+  });
+
+  const handleUpdateStoreSettings = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await updateProfile(storeSettings).unwrap();
+      setIsStoreSettingsModalOpen(false);
+      showAlert('Успіх', 'Налаштування магазину успішно оновлено', 'success');
+    } catch (err) {
+      showAlert('Помилка', 'Не вдалося оновити налаштування', 'error');
+    }
+  };
 
   if (!isAuthenticated || user?.role !== 'seller') {
     navigate('/');
@@ -201,10 +222,24 @@ const SellerDashboardPage: React.FC = () => {
     );
   };
 
-  const filteredProducts = productsData?.results?.filter(p => 
-    p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    p.brand?.toLowerCase().includes(searchTerm.toLowerCase())
-  ) || [];
+  const recentSales = useMemo(() => analyticsData?.recent_sales || [], [analyticsData?.recent_sales]);
+
+  const handleOpenProductModal = useCallback(() => {
+    if (currentProductCount >= maxProducts) {
+      showAlert('Ліміт вичерпано', `Ліміт товарів вичерпано (${maxProducts}). Оновіть підписку, щоб додавати більше товарів.`, 'error');
+      return;
+    }
+    setEditingProduct(undefined);
+    setIsModalOpen(true);
+  }, [currentProductCount, maxProducts]);
+
+  const handleProductsModalClose = useCallback(() => setIsProductsModalOpen(false), []);
+  const handleSalesModalClose = useCallback(() => setIsSalesModalOpen(false), []);
+
+  const handleEditProduct = useCallback((product: Product) => {
+    setEditingProduct(product);
+    setIsModalOpen(true);
+  }, []);
 
   const ratedProducts =
     productsData?.results?.filter((p) => p.rating != null && p.rating > 0) ?? [];
@@ -231,21 +266,32 @@ const SellerDashboardPage: React.FC = () => {
             <h1 className="text-4xl font-extrabold text-slate-900 tracking-tight mb-2">Мій магазин</h1>
             <p className="text-slate-500 font-medium">Керуйте своїми товарами та відстежуйте продажі</p>
           </div>
-          <Button 
-            size="lg" 
-            className="shadow-soft gap-2 px-8"
-            onClick={() => {
-              if (currentProductCount >= maxProducts) {
-                showAlert('Ліміт вичерпано', `Ліміт товарів вичерпано (${maxProducts}). Оновіть підписку, щоб додавати більше товарів.`, 'error');
-              } else {
-                setEditingProduct(undefined);
-                setIsModalOpen(true);
-              }
-            }}
-          >
-            <Plus size={20} />
-            Додати товар ({currentProductCount}/{maxProducts === 1000000 ? '∞' : maxProducts})
-          </Button>
+          <div className="flex items-center gap-4">
+            <Button 
+              variant="outline"
+              size="lg" 
+              className="shadow-sm gap-2 px-6"
+              onClick={() => setIsStoreSettingsModalOpen(true)}
+            >
+              <Settings size={20} />
+              Налаштування магазину
+            </Button>
+            <Button 
+              size="lg" 
+              className="shadow-soft gap-2 px-8"
+              onClick={() => {
+                if (currentProductCount >= maxProducts) {
+                  showAlert('Ліміт вичерпано', `Ліміт товарів вичерпано (${maxProducts}). Оновіть підписку, щоб додавати більше товарів.`, 'error');
+                } else {
+                  setEditingProduct(undefined);
+                  setIsModalOpen(true);
+                }
+              }}
+            >
+              <Plus size={20} />
+              Додати товар ({currentProductCount}/{maxProducts === 1000000 ? '∞' : maxProducts})
+            </Button>
+          </div>
         </div>
 
         {/* Subscription Tiers (if not fully maxed out) */}
@@ -362,37 +408,49 @@ const SellerDashboardPage: React.FC = () => {
                <Button size="sm" className="mt-4" onClick={() => handleUpgradeClick('plus')}>Отримати PLUS</Button>
              </div>
           )}
-          <div className="bg-white p-8 rounded-[32px] border border-slate-100 shadow-soft group hover:border-brand-100 transition-all">
-            <div className="w-12 h-12 rounded-2xl bg-brand-50 text-brand-600 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
-              <Package size={24} />
+          <div className="bg-white p-8 rounded-[32px] border border-slate-100 shadow-soft group hover:border-brand-100 transition-all relative overflow-hidden">
+            <div className="absolute -right-6 -top-6 w-24 h-24 bg-brand-50 rounded-full opacity-50 group-hover:scale-150 transition-transform duration-500"></div>
+            <div className="relative z-10">
+              <div className="w-12 h-12 rounded-2xl bg-brand-50 text-brand-600 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform shadow-sm">
+                <Package size={24} />
+              </div>
+              <div className="text-3xl font-extrabold text-slate-900 mb-1 tracking-tight">{formatNumber(productsData?.count || 0)}</div>
+              <div className="text-xs font-bold text-slate-400 uppercase tracking-widest">Товарів в продажу</div>
             </div>
-            <div className="text-3xl font-extrabold text-slate-900 mb-1">{productsData?.count || 0}</div>
-            <div className="text-xs font-bold text-slate-400 uppercase tracking-widest">Товарів в продажу</div>
           </div>
-          <div className="bg-white p-8 rounded-[32px] border border-slate-100 shadow-soft group hover:border-emerald-100 transition-all">
-            <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
-              <TrendingUp size={24} />
+          <div className="bg-white p-8 rounded-[32px] border border-slate-100 shadow-soft group hover:border-emerald-100 transition-all relative overflow-hidden">
+            <div className="absolute -right-6 -top-6 w-24 h-24 bg-emerald-50 rounded-full opacity-50 group-hover:scale-150 transition-transform duration-500"></div>
+            <div className="relative z-10">
+              <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform shadow-sm">
+                <TrendingUp size={24} />
+              </div>
+              <div className="text-3xl font-extrabold text-slate-900 mb-1 tracking-tight" title={String(analyticsData?.total_sales || 0)}>
+                {isLoadingAnalytics ? '...' : formatCompactNumber(analyticsData?.total_sales || 0)}
+              </div>
+              <div className="text-xs font-bold text-slate-400 uppercase tracking-widest">Продажів за місяць</div>
             </div>
-            <div className="text-3xl font-extrabold text-slate-900 mb-1">
-              {isLoadingAnalytics ? '...' : (analyticsData?.total_sales || 0)}
-            </div>
-            <div className="text-xs font-bold text-slate-400 uppercase tracking-widest">Продажів за місяць</div>
           </div>
-          <div className="bg-white p-8 rounded-[32px] border border-slate-100 shadow-soft group hover:border-amber-100 transition-all">
-            <div className="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
-              <DollarSign size={24} />
+          <div className="bg-white p-8 rounded-[32px] border border-slate-100 shadow-soft group hover:border-amber-100 transition-all relative overflow-hidden">
+            <div className="absolute -right-6 -top-6 w-24 h-24 bg-amber-50 rounded-full opacity-50 group-hover:scale-150 transition-transform duration-500"></div>
+            <div className="relative z-10">
+              <div className="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform shadow-sm">
+                <DollarSign size={24} />
+              </div>
+              <div className="text-3xl font-extrabold text-slate-900 mb-1 tracking-tight" title={String(analyticsData?.total_revenue || 0)}>
+                {isLoadingAnalytics ? '...' : formatCompactCurrency(analyticsData?.total_revenue || 0)}
+              </div>
+              <div className="text-xs font-bold text-slate-400 uppercase tracking-widest">Загальний дохід</div>
             </div>
-            <div className="text-3xl font-extrabold text-slate-900 mb-1">
-              ${isLoadingAnalytics ? '...' : (analyticsData?.total_revenue?.toFixed(2) || '0.00')}
-            </div>
-            <div className="text-xs font-bold text-slate-400 uppercase tracking-widest">Загальний дохід</div>
           </div>
-          <div className="bg-white p-8 rounded-[32px] border border-slate-100 shadow-soft group hover:border-indigo-100 transition-all">
-            <div className="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
-              <Users size={24} />
+          <div className="bg-white p-8 rounded-[32px] border border-slate-100 shadow-soft group hover:border-indigo-100 transition-all relative overflow-hidden">
+            <div className="absolute -right-6 -top-6 w-24 h-24 bg-indigo-50 rounded-full opacity-50 group-hover:scale-150 transition-transform duration-500"></div>
+            <div className="relative z-10">
+              <div className="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform shadow-sm">
+                <Users size={24} />
+              </div>
+              <div className="text-3xl font-extrabold text-slate-900 mb-1 tracking-tight">{avgStoreRating ?? '—'}</div>
+              <div className="text-xs font-bold text-slate-400 uppercase tracking-widest">Рейтинг магазину</div>
             </div>
-            <div className="text-3xl font-extrabold text-slate-900 mb-1">{avgStoreRating ?? '—'}</div>
-            <div className="text-xs font-bold text-slate-400 uppercase tracking-widest">Рейтинг магазину</div>
           </div>
         </div>
 
@@ -427,7 +485,7 @@ const SellerDashboardPage: React.FC = () => {
                 <span className="font-bold text-slate-900">Нові</span>
               </div>
               <div className="text-2xl font-extrabold text-slate-900">
-                {analyticsData?.recent_sales?.filter((s: any) => !s.is_approved && !s.is_delivered).length || 0}
+                {formatNumber(analyticsData?.recent_sales?.filter((s: any) => !s.is_approved && !s.is_delivered).length || 0)}
               </div>
               <div className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">Очікують підтвердження</div>
             </div>
@@ -440,7 +498,7 @@ const SellerDashboardPage: React.FC = () => {
                 <span className="font-bold text-slate-900">В процесі</span>
               </div>
               <div className="text-2xl font-extrabold text-slate-900">
-                {analyticsData?.recent_sales?.filter((s: any) => s.is_approved && !s.is_delivered).length || 0}
+                {formatNumber(analyticsData?.recent_sales?.filter((s: any) => s.is_approved && !s.is_delivered).length || 0)}
               </div>
               <div className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">Комплектуються</div>
             </div>
@@ -453,7 +511,7 @@ const SellerDashboardPage: React.FC = () => {
                 <span className="font-bold text-slate-900">Завершені</span>
               </div>
               <div className="text-2xl font-extrabold text-slate-900">
-                {analyticsData?.recent_sales?.filter((s: any) => s.is_delivered).length || 0}
+                {formatNumber(analyticsData?.recent_sales?.filter((s: any) => s.is_delivered).length || 0)}
               </div>
               <div className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">Успішно доставлені</div>
             </div>
@@ -484,7 +542,7 @@ const SellerDashboardPage: React.FC = () => {
                 <span className="font-bold text-slate-900">Всього товарів</span>
               </div>
               <div className="text-2xl font-extrabold text-slate-900">
-                {productsData?.count || 0}
+                {formatNumber(productsData?.count || 0)}
               </div>
               <div className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">В каталозі</div>
             </div>
@@ -497,7 +555,7 @@ const SellerDashboardPage: React.FC = () => {
                 <span className="font-bold text-slate-900">Закінчуються</span>
               </div>
               <div className="text-2xl font-extrabold text-slate-900">
-                {products.filter(p => p.stock > 0 && p.stock <= 10).length}
+                {formatNumber(products.filter(p => p.stock > 0 && p.stock <= 10).length)}
               </div>
               <div className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">Залишок менше 10 шт.</div>
             </div>
@@ -510,7 +568,7 @@ const SellerDashboardPage: React.FC = () => {
                 <span className="font-bold text-slate-900">Немає в наявності</span>
               </div>
               <div className="text-2xl font-extrabold text-slate-900">
-                {products.filter(p => p.stock === 0).length}
+                {formatNumber(products.filter(p => p.stock === 0).length)}
               </div>
               <div className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">Потребують поповнення</div>
             </div>
@@ -521,32 +579,87 @@ const SellerDashboardPage: React.FC = () => {
       {/* Products Management Modal */}
       <ProductsManagementModal
         isOpen={isProductsModalOpen}
-        onClose={() => setIsProductsModalOpen(false)}
-        products={products}
-        onEdit={(product) => {
-          setEditingProduct(product);
-          setIsModalOpen(true);
-        }}
+        onClose={handleProductsModalClose}
+        sellerId={user.id}
+        onEdit={handleEditProduct}
         onDelete={handleDeleteProduct}
-        onAddNew={() => {
-          if (currentProductCount >= maxProducts) {
-            showAlert('Ліміт вичерпано', `Ліміт товарів вичерпано (${maxProducts}). Оновіть підписку, щоб додавати більше товарів.`, 'error');
-          } else {
-            setEditingProduct(undefined);
-            setIsModalOpen(true);
-          }
-        }}
+        onAddNew={handleOpenProductModal}
       />
 
       {/* Sales Management Modal */}
       <SalesManagementModal
         isOpen={isSalesModalOpen}
-        onClose={() => setIsSalesModalOpen(false)}
-        sales={analyticsData?.recent_sales || []}
+        onClose={handleSalesModalClose}
+        sales={recentSales}
         onApprove={handleApproveSale}
         onDeliver={handleDeliverSale}
         onViewDetails={setSelectedSaleDetails}
       />
+
+      {/* Store Settings Modal */}
+      {isStoreSettingsModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => setIsStoreSettingsModalOpen(false)} />
+          <div className="relative bg-white rounded-[40px] p-8 max-w-lg w-full shadow-2xl animate-fade-in border border-slate-100">
+            <div className="flex items-center justify-between mb-8">
+              <div>
+                <h3 className="text-2xl font-extrabold text-slate-900 tracking-tight">Налаштування магазину</h3>
+                <p className="text-slate-500 font-medium mt-1">Оновіть інформацію про ваш магазин</p>
+              </div>
+              <button 
+                onClick={() => setIsStoreSettingsModalOpen(false)}
+                className="w-10 h-10 flex items-center justify-center rounded-full bg-slate-50 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            
+            <form onSubmit={handleUpdateStoreSettings} className="space-y-6">
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">Назва магазину</label>
+                <input 
+                  type="text" 
+                  placeholder="Назва вашого магазину"
+                  value={storeSettings.store_name}
+                  onChange={(e) => setStoreSettings({...storeSettings, store_name: e.target.value})}
+                  className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:ring-4 focus:ring-brand-500/20 focus:border-brand-500 outline-none transition-all font-medium"
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">Опис магазину</label>
+                <textarea 
+                  rows={4}
+                  placeholder="Розкажіть про ваш магазин, товари та переваги..."
+                  value={storeSettings.store_description}
+                  onChange={(e) => setStoreSettings({...storeSettings, store_description: e.target.value})}
+                  className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:ring-4 focus:ring-brand-500/20 focus:border-brand-500 outline-none transition-all font-medium resize-none"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">URL логотипу</label>
+                <input 
+                  type="url" 
+                  placeholder="https://example.com/logo.png"
+                  value={storeSettings.store_logo}
+                  onChange={(e) => setStoreSettings({...storeSettings, store_logo: e.target.value})}
+                  className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:ring-4 focus:ring-brand-500/20 focus:border-brand-500 outline-none transition-all font-medium"
+                />
+              </div>
+
+              <div className="flex gap-4 pt-4 border-t border-slate-100">
+                <Button type="button" variant="outline" className="flex-1" onClick={() => setIsStoreSettingsModalOpen(false)}>
+                  Скасувати
+                </Button>
+                <Button type="submit" className="flex-1 shadow-soft" isLoading={isUpdatingProfile}>
+                  Зберегти зміни
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Product Form Modal */}
       <ProductFormModal 
@@ -606,11 +719,11 @@ const SellerDashboardPage: React.FC = () => {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="bg-white p-3 rounded-2xl border border-slate-100 shadow-sm">
                     <span className="block text-xs font-bold text-slate-400 mb-1">Кількість</span>
-                    <span className="font-extrabold text-slate-900">{selectedSaleDetails?.quantity} шт.</span>
+                    <span className="font-extrabold text-slate-900">{formatNumber(selectedSaleDetails?.quantity || 0)} шт.</span>
                   </div>
                   <div className="bg-white p-3 rounded-2xl border border-slate-100 shadow-sm">
                     <span className="block text-xs font-bold text-slate-400 mb-1">Сума</span>
-                    <span className="font-extrabold text-brand-600">${((selectedSaleDetails?.price || 0) * (selectedSaleDetails?.quantity || 0)).toFixed(2)}</span>
+                    <span className="font-extrabold text-brand-600">{formatCurrency((selectedSaleDetails?.price || 0) * (selectedSaleDetails?.quantity || 0))}</span>
                   </div>
                 </div>
               </div>

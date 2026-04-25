@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { 
   LineChart, Line, AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend 
@@ -6,6 +6,7 @@ import {
 import { SellerAnalytics } from '../api/orderApiSlice';
 import { AlertCircle, Lock } from 'lucide-react';
 import Button from './ui/Button';
+import { formatNumber, formatCompactNumber } from '../utils/format';
 
 interface SellerAnalyticsChartsProps {
   data?: SellerAnalytics;
@@ -22,13 +23,46 @@ const CustomTooltip = ({ active, payload, label }: any) => {
         <p className="font-bold text-slate-900 mb-2">{label}</p>
         {payload.map((entry: any, index: number) => (
           <p key={index} className="text-sm font-medium" style={{ color: entry.color }}>
-            {entry.name}: {entry.name === 'Дохід' ? '$' : ''}{entry.value}
+            {entry.name}: {entry.name === 'Дохід' ? '$' : ''}{formatNumber(entry.value)}
           </p>
         ))}
       </div>
     );
   }
   return null;
+};
+
+interface MeasuredChartProps {
+  height: number;
+  children: (width: number, height: number) => React.ReactNode;
+}
+
+const MeasuredChart: React.FC<MeasuredChartProps> = ({ height, children }) => {
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const [width, setWidth] = useState(0);
+
+  useEffect(() => {
+    const element = containerRef.current;
+    if (!element) return;
+
+    const updateWidth = () => {
+      const nextWidth = Math.floor(element.getBoundingClientRect().width);
+      if (nextWidth > 0) setWidth(nextWidth);
+    };
+
+    updateWidth();
+
+    const observer = new ResizeObserver(updateWidth);
+    observer.observe(element);
+
+    return () => observer.disconnect();
+  }, []);
+
+  return (
+    <div ref={containerRef} className="w-full min-w-0" style={{ height }}>
+      {width > 0 ? children(width, height) : null}
+    </div>
+  );
 };
 
 const SellerAnalyticsCharts: React.FC<SellerAnalyticsChartsProps> = ({ data, tier, onUpgrade }) => {
@@ -64,7 +98,7 @@ const SellerAnalyticsCharts: React.FC<SellerAnalyticsChartsProps> = ({ data, tie
   return (
     <div className="space-y-6 mb-12">
       {/* Primary Chart: Sales over time */}
-      <div className="bg-white p-8 rounded-[32px] border border-slate-100 shadow-soft relative overflow-hidden">
+      <div className="bg-white p-8 rounded-[32px] border border-slate-100 shadow-soft relative overflow-hidden min-w-0">
         {isFree && (
           <div className="absolute inset-0 z-10 bg-white/60 backdrop-blur-md flex flex-col items-center justify-center">
             <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center mb-4 shadow-lg border border-slate-100">
@@ -83,8 +117,9 @@ const SellerAnalyticsCharts: React.FC<SellerAnalyticsChartsProps> = ({ data, tie
           </div>
         </div>
 
-        <div className="h-[300px] w-full">
-          <ResponsiveContainer width="100%" height="100%">
+        <MeasuredChart height={300}>
+          {(width, height) => (
+          <ResponsiveContainer width={width} height={height}>
             {isPro || isVip ? (
               <AreaChart data={isFree ? mockSalesData : salesData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                 <defs>
@@ -95,7 +130,7 @@ const SellerAnalyticsCharts: React.FC<SellerAnalyticsChartsProps> = ({ data, tie
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                 <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 12 }} dy={10} />
-                <YAxis axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 12 }} />
+                <YAxis axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 12 }} tickFormatter={(value) => formatCompactNumber(value)} />
                 <Tooltip content={<CustomTooltip />} />
                 <Area type="monotone" dataKey="revenue" name="Дохід" stroke="#4f46e5" strokeWidth={3} fillOpacity={1} fill="url(#colorRevenue)" />
               </AreaChart>
@@ -103,19 +138,20 @@ const SellerAnalyticsCharts: React.FC<SellerAnalyticsChartsProps> = ({ data, tie
               <LineChart data={isFree ? mockSalesData : salesData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                 <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 12 }} dy={10} />
-                <YAxis axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 12 }} />
+                <YAxis axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 12 }} tickFormatter={(value) => formatCompactNumber(value)} />
                 <Tooltip content={<CustomTooltip />} />
                 <Line type="monotone" dataKey="sales" name="Продажі" stroke="#10b981" strokeWidth={3} dot={{ r: 4, strokeWidth: 2 }} activeDot={{ r: 6 }} />
               </LineChart>
             )}
           </ResponsiveContainer>
-        </div>
+          )}
+        </MeasuredChart>
       </div>
 
       {/* Secondary Charts: Top Products */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Top Products by Sales (Bar Chart) */}
-        <div className="bg-white p-8 rounded-[32px] border border-slate-100 shadow-soft relative overflow-hidden">
+        <div className="bg-white p-8 rounded-[32px] border border-slate-100 shadow-soft relative overflow-hidden min-w-0">
           {(!isPro && !isVip) && (
             <div className="absolute inset-0 z-10 bg-white/60 backdrop-blur-md flex flex-col items-center justify-center">
               <div className="w-14 h-14 bg-white rounded-2xl flex items-center justify-center mb-4 shadow-lg border border-slate-100">
@@ -131,21 +167,23 @@ const SellerAnalyticsCharts: React.FC<SellerAnalyticsChartsProps> = ({ data, tie
             <h3 className="text-xl font-extrabold text-slate-900 tracking-tight">Топ товарів за продажами</h3>
           </div>
 
-          <div className="h-[250px] w-full">
-            <ResponsiveContainer width="100%" height="100%">
+          <MeasuredChart height={250}>
+            {(width, height) => (
+            <ResponsiveContainer width={width} height={height}>
               <BarChart data={(!isPro && !isVip) ? mockTopProducts : topProductsData} layout="vertical" margin={{ top: 0, right: 0, left: 20, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f1f5f9" />
-                <XAxis type="number" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 12 }} />
+                <XAxis type="number" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 12 }} tickFormatter={(value) => formatCompactNumber(value)} />
                 <YAxis dataKey="name" type="category" axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 12, fontWeight: 600 }} />
                 <Tooltip cursor={{ fill: '#f8fafc' }} content={<CustomTooltip />} />
                 <Bar dataKey="sales" name="Продажі" fill="#f59e0b" radius={[0, 4, 4, 0]} barSize={24} />
               </BarChart>
             </ResponsiveContainer>
-          </div>
+            )}
+          </MeasuredChart>
         </div>
 
         {/* Top Products by Revenue (Pie Chart) */}
-        <div className="bg-white p-8 rounded-[32px] border border-slate-100 shadow-soft relative overflow-hidden">
+        <div className="bg-white p-8 rounded-[32px] border border-slate-100 shadow-soft relative overflow-hidden min-w-0">
           {!isVip && (
             <div className="absolute inset-0 z-10 bg-white/60 backdrop-blur-md flex flex-col items-center justify-center">
               <div className="w-14 h-14 bg-white rounded-2xl flex items-center justify-center mb-4 shadow-lg border border-slate-100">
@@ -161,8 +199,9 @@ const SellerAnalyticsCharts: React.FC<SellerAnalyticsChartsProps> = ({ data, tie
             <h3 className="text-xl font-extrabold text-slate-900 tracking-tight">Розподіл доходу</h3>
           </div>
 
-          <div className="h-[250px] w-full flex items-center justify-center">
-            <ResponsiveContainer width="100%" height="100%">
+          <MeasuredChart height={250}>
+            {(width, height) => (
+            <ResponsiveContainer width={width} height={height}>
               <PieChart>
                 <Pie
                   data={!isVip ? mockTopProducts : topProductsData}
@@ -182,7 +221,8 @@ const SellerAnalyticsCharts: React.FC<SellerAnalyticsChartsProps> = ({ data, tie
                 <Legend verticalAlign="bottom" height={36} iconType="circle" wrapperStyle={{ fontSize: '12px', fontWeight: 600, color: '#64748b' }} />
               </PieChart>
             </ResponsiveContainer>
-          </div>
+            )}
+          </MeasuredChart>
         </div>
       </div>
     </div>

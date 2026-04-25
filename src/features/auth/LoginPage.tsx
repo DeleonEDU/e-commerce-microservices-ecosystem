@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link, Navigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
-import { useLoginMutation } from '../../api/authApiSlice';
-import { setCredentials } from './authSlice';
+import { useLazyGetProfileQuery, useLoginMutation } from '../../api/authApiSlice';
+import { logout, setCredentials, setUser } from './authSlice';
 import { LogIn, Mail, Lock, Loader2 } from 'lucide-react';
 import { RootState } from '../../store/store';
 
@@ -14,6 +14,7 @@ const LoginPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
 
   const [login, { isLoading }] = useLoginMutation();
+  const [loadProfile] = useLazyGetProfileQuery();
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const { isAuthenticated } = useSelector((state: RootState) => state.auth);
@@ -29,6 +30,14 @@ const LoginPage: React.FC = () => {
     try {
       const result = await login({ email, password }).unwrap();
       dispatch(setCredentials({ user: null, token: result.access }));
+      try {
+        const profile = await loadProfile().unwrap();
+        dispatch(setUser(profile));
+      } catch {
+        dispatch(logout());
+        setError('Не вдалося завантажити профіль після входу. Спробуйте ще раз.');
+        return;
+      }
       navigate('/');
     } catch (err: any) {
       setError(err.data?.detail || 'Невірний email або пароль');

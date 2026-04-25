@@ -7,9 +7,42 @@ import { useCreateSubscriptionIntentMutation } from '../api/subscriptionApiSlice
 import { useConfirmPaymentMutation } from '../api/paymentApiSlice';
 import { useSelector } from 'react-redux';
 import { RootState } from '../store/store';
+import { formatCurrency } from '../utils/format';
 
 // TODO: Replace with env variable if needed
 const stripePromise = loadStripe('pk_test_51TPMQsH8SpgjaGIVWO9vvxqj1HdDi3ZgVpzUQpj0r9EAr6hAbEKjwAPoxS9Cl6xTYBl7BqC4smgyffEHuIv8PmXd00mN5NUNfe');
+
+const stripeAppearance = {
+  theme: 'stripe' as const,
+  variables: {
+    colorPrimary: '#4f46e5',
+    colorBackground: '#ffffff',
+    colorText: '#0f172a',
+    colorDanger: '#e11d48',
+    fontFamily: 'ui-sans-serif, system-ui, sans-serif',
+    spacingUnit: '4px',
+    borderRadius: '16px',
+  },
+  rules: {
+    '.Input': {
+      padding: '16px',
+      border: '1px solid #e2e8f0',
+      boxShadow: 'none',
+    },
+    '.Input:focus': {
+      border: '1px solid #4f46e5',
+      boxShadow: '0 0 0 4px rgba(79, 70, 229, 0.1)',
+    },
+    '.Label': {
+      fontWeight: '700',
+      color: '#64748b',
+      textTransform: 'uppercase',
+      letterSpacing: '0.05em',
+      fontSize: '0.75rem',
+      marginBottom: '8px',
+    }
+  }
+};
 
 interface StripeSubscriptionFormProps {
   clientSecret: string;
@@ -57,7 +90,7 @@ const StripeSubscriptionForm: React.FC<StripeSubscriptionFormProps> = ({ clientS
     <form onSubmit={handleSubmit} className="p-6 space-y-6">
       <div className="p-4 rounded-2xl bg-brand-50 flex items-center justify-between border border-brand-100 text-brand-900">
         <span className="font-bold">До сплати:</span>
-        <span className="text-2xl font-extrabold">${amount.toFixed(2)}<span className="text-sm text-brand-600/70">/міс</span></span>
+        <span className="text-2xl font-extrabold">{formatCurrency(amount)}<span className="text-sm text-brand-600/70">/міс</span></span>
       </div>
 
       <PaymentElement />
@@ -78,15 +111,9 @@ const StripeSubscriptionForm: React.FC<StripeSubscriptionFormProps> = ({ clientS
         className="w-full shadow-soft" 
         size="lg"
         disabled={!stripe || isProcessing}
+        isLoading={isProcessing}
       >
-        {isProcessing ? (
-          <span className="flex items-center gap-2">
-            <Loader2 className="animate-spin" size={20} />
-            Обробка...
-          </span>
-        ) : (
-          `Оплатити $${amount.toFixed(2)}`
-        )}
+        {`Оплатити ${formatCurrency(amount)}`}
       </Button>
     </form>
   );
@@ -160,7 +187,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onSuccess,
             <p className="text-sm font-bold uppercase tracking-widest">Підготовка платежу...</p>
           </div>
         ) : (
-          <Elements stripe={stripePromise} options={{ clientSecret, appearance: { theme: 'stripe' } }}>
+          <Elements stripe={stripePromise} options={{ clientSecret, appearance: stripeAppearance }}>
             <StripeSubscriptionForm 
               clientSecret={clientSecret} 
               onSuccess={onSuccess}

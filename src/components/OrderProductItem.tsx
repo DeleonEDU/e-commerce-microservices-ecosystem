@@ -1,5 +1,6 @@
 import React from 'react';
-import { Package, CheckCircle2, Clock } from 'lucide-react';
+import { Package, CheckCircle2, Clock, ExternalLink } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { useGetProductQuery } from '../api/productApiSlice';
 
 interface OrderProductItemProps {
@@ -15,7 +16,7 @@ const OrderProductItem: React.FC<OrderProductItemProps> = ({ productId, quantity
   const { data: product, isLoading } = useGetProductQuery(productId);
 
   return (
-    <div className="flex justify-between items-center p-4 bg-slate-50 rounded-2xl border border-slate-100 hover:border-slate-200 transition-colors">
+    <div className="flex justify-between items-center p-4 bg-slate-50 rounded-2xl border border-slate-100 hover:border-slate-200 transition-colors group">
       <div className="flex items-center gap-4">
         {isLoading ? (
           <div className="w-12 h-12 bg-slate-200 animate-pulse rounded-xl" />
@@ -35,7 +36,14 @@ const OrderProductItem: React.FC<OrderProductItemProps> = ({ productId, quantity
           {isLoading ? (
             <div className="h-4 w-32 bg-slate-200 animate-pulse rounded mb-2" />
           ) : (
-            <p className="text-sm font-bold text-slate-900 line-clamp-1">{product?.name || `Товар #${productId}`}</p>
+            <Link 
+              to={`/product/${productId}`}
+              target="_blank"
+              className="text-sm font-bold text-slate-900 line-clamp-1 hover:text-brand-600 transition-colors inline-flex items-center gap-1.5"
+            >
+              {product?.name || `Товар #${productId}`}
+              <ExternalLink size={12} className="opacity-0 -ml-1 group-hover:opacity-100 group-hover:ml-0 transition-all" />
+            </Link>
           )}
           <div className="flex items-center gap-2 mt-1">
             <p className="text-xs font-medium text-slate-500">
