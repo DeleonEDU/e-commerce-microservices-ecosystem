@@ -5,11 +5,11 @@ import datetime
 import enum
 
 class OrderStatus(enum.Enum):
-    PENDING = "pending"
-    PAID = "paid"
-    SHIPPED = "shipped"
-    DELIVERED = "delivered"
-    CANCELLED = "cancelled"
+    PENDING = "PENDING"
+    PAID = "PAID"
+    SHIPPED = "SHIPPED"
+    DELIVERED = "DELIVERED"
+    CANCELLED = "CANCELLED"
 
 class Order(Base):
     __tablename__ = "orders"
@@ -23,6 +23,7 @@ class Order(Base):
     address = Column(String, nullable=True)
     city = Column(String, nullable=True)
     zip_code = Column(String, nullable=True)
+    payment_method = Column(String, default="card")
 
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
 

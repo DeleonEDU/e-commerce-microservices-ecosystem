@@ -39,6 +39,7 @@ class OrderCreate(BaseModel):
     address: str | None = None
     city: str | None = None
     zip_code: str | None = None
+    payment_method: str | None = "card"
     items: List[OrderItemCreate] | None = None
 
 class Order(BaseModel):
@@ -50,6 +51,7 @@ class Order(BaseModel):
     address: str | None = None
     city: str | None = None
     zip_code: str | None = None
+    payment_method: str | None = "card"
     created_at: datetime
     items: List[OrderItemBase]
     model_config = ConfigDict(from_attributes=True, use_enum_values=True)

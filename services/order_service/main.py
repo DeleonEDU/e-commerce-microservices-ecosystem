@@ -108,10 +108,14 @@ def list_user_orders(user_id: int, db: Session = Depends(get_db)):
 
 @app.get("/users/{user_id}/has_bought/{product_id}")
 def check_user_bought_product(user_id: int, product_id: int, db: Session = Depends(get_db)):
+    from sqlalchemy import or_
     has_bought = db.query(models.OrderItem).join(models.Order).filter(
         models.Order.user_id == user_id,
         models.OrderItem.product_id == product_id,
-        models.Order.status.in_([models.OrderStatus.PAID, models.OrderStatus.SHIPPED, models.OrderStatus.DELIVERED])
+        or_(
+            models.Order.status.in_([models.OrderStatus.PAID, models.OrderStatus.SHIPPED, models.OrderStatus.DELIVERED]),
+            models.Order.payment_method == "cash"
+        )
     ).first() is not None
     return {"has_bought": has_bought}
 
@@ -202,7 +206,8 @@ def create_order(order_data: schemas.OrderCreate, db: Session = Depends(get_db))
         full_name=order_data.full_name,
         address=order_data.address,
         city=order_data.city,
-        zip_code=order_data.zip_code
+        zip_code=order_data.zip_code,
+        payment_method=order_data.payment_method
     )
     db.add(new_order)
     db.commit()
@@ -232,10 +237,18 @@ from datetime import datetime, timedelta
 
 @app.get("/sellers/{seller_id}/analytics")
 def get_seller_analytics(seller_id: int, db: Session = Depends(get_db)):
+    from sqlalchemy import or_
     items = (
         db.query(models.OrderItem)
+        .join(models.Order)
         .options(joinedload(models.OrderItem.order))
         .filter(models.OrderItem.seller_id == seller_id)
+        .filter(
+            or_(
+                models.Order.status.in_([models.OrderStatus.PAID, models.OrderStatus.SHIPPED, models.OrderStatus.DELIVERED]),
+                models.Order.payment_method == "cash"
+            )
+        )
         .all()
     )
     
@@ -304,12 +317,15 @@ def approve_order_item(seller_id: int, item_id: int, db: Session = Depends(get_d
     if not item:
         raise HTTPException(status_code=404, detail="Order item not found or does not belong to this seller")
     
+    order = db.query(models.Order).options(joinedload(models.Order.items)).filter(models.Order.id == item.order_id).first()
+    if not order or (order.status == models.OrderStatus.PENDING and order.payment_method != "cash"):
+        raise HTTPException(status_code=400, detail="Cannot approve an item for an unpaid order")
+    
     item.is_approved = True
     db.commit()
     
-    # Check if all items in the order are approved and if the order is paid
-    order = db.query(models.Order).options(joinedload(models.Order.items)).filter(models.Order.id == item.order_id).first()
-    if order and order.status == models.OrderStatus.PAID:
+    # Check if all items in the order are approved and if the order is paid or cash
+    if order and (order.status == models.OrderStatus.PAID or (order.status == models.OrderStatus.PENDING and order.payment_method == "cash")):
         all_approved = all(i.is_approved for i in order.items)
         if all_approved:
             order.status = models.OrderStatus.SHIPPED
@@ -323,6 +339,10 @@ def deliver_order_item(seller_id: int, item_id: int, db: Session = Depends(get_d
     if not item:
         raise HTTPException(status_code=404, detail="Order item not found or does not belong to this seller")
     
+    order = db.query(models.Order).options(joinedload(models.Order.items)).filter(models.Order.id == item.order_id).first()
+    if not order or (order.status == models.OrderStatus.PENDING and order.payment_method != "cash"):
+        raise HTTPException(status_code=400, detail="Cannot deliver an item for an unpaid order")
+    
     if not item.is_approved:
         raise HTTPException(status_code=400, detail="Order item must be approved before it can be delivered")
 
@@ -330,8 +350,7 @@ def deliver_order_item(seller_id: int, item_id: int, db: Session = Depends(get_d
     db.commit()
     
     # Check if all items in the order are delivered
-    order = db.query(models.Order).options(joinedload(models.Order.items)).filter(models.Order.id == item.order_id).first()
-    if order and order.status in [models.OrderStatus.PAID, models.OrderStatus.SHIPPED]:
+    if order and (order.status in [models.OrderStatus.PAID, models.OrderStatus.SHIPPED] or (order.status == models.OrderStatus.PENDING and order.payment_method == "cash")):
         all_delivered = all(i.is_delivered for i in order.items)
         if all_delivered:
             order.status = models.OrderStatus.DELIVERED

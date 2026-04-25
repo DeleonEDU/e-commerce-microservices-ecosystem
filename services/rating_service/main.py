@@ -1,6 +1,6 @@
 from typing import List
 
-from fastapi import Depends, FastAPI
+from fastapi import Depends, FastAPI, HTTPException
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
@@ -20,13 +20,31 @@ def health():
 
 
 import requests
+from datetime import datetime, timedelta
 
 @app.post("/reviews", response_model=schemas.ReviewResponse)
 def create_review(review_data: schemas.ReviewCreate, db: Session = Depends(get_db)):
+    # Перевіряємо чи користувач залишав відгук протягом останнього тижня
+    one_week_ago = datetime.utcnow() - timedelta(days=7)
+    recent_review = (
+        db.query(models.Review)
+        .filter(
+            models.Review.user_id == review_data.user_id,
+            models.Review.product_id == review_data.product_id,
+            models.Review.created_at >= one_week_ago
+        )
+        .first()
+    )
+    if recent_review:
+        raise HTTPException(
+            status_code=429, 
+            detail="You have already left a review for this product within the last 7 days."
+        )
+
     # Перевіряємо чи користувач купив товар
     try:
         resp = requests.get(
-            f"http://orderservice:8002/users/{review_data.user_id}/has_bought/{review_data.product_id}",
+            f"http://order_service:8002/users/{review_data.user_id}/has_bought/{review_data.product_id}",
             timeout=3
         )
         if resp.status_code != 200 or not resp.json().get("has_bought"):

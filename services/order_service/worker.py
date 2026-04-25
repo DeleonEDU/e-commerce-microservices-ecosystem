@@ -21,7 +21,7 @@ def process_payment_message(ch, method, properties, body):
     order_id = data.get("order_id")
     status = data.get("status")
     
-    print(f"Received payment update for order {order_id}: {status}")
+    print(f"Received payment update for order {order_id}: {status}", flush=True)
     
     db = database.SessionLocal()
     try:
@@ -36,12 +36,12 @@ def process_payment_message(ch, method, properties, body):
             
             if all_delivered and len(order.items) > 0:
                 order.status = models.OrderStatus.DELIVERED
-                print(f"Order {order_id} status updated to DELIVERED (all items were already delivered)")
+                print(f"Order {order_id} status updated to DELIVERED (all items were already delivered)", flush=True)
             elif all_approved and len(order.items) > 0:
                 order.status = models.OrderStatus.SHIPPED
-                print(f"Order {order_id} status updated to SHIPPED (all items were already approved)")
+                print(f"Order {order_id} status updated to SHIPPED (all items were already approved)", flush=True)
             else:
-                print(f"Order {order_id} status updated to PAID")
+                print(f"Order {order_id} status updated to PAID", flush=True)
                 
             db.commit()
     except Exception as e:

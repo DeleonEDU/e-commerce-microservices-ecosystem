@@ -4,6 +4,7 @@ from datetime import datetime
 
 class ReviewCreate(BaseModel):
     user_id: int
+    user_name: Optional[str] = None
     product_id: int
     rating: int = Field(..., ge=1, le=5)
     comment: Optional[str] = None
@@ -11,6 +12,7 @@ class ReviewCreate(BaseModel):
 class ReviewResponse(BaseModel):
     id: int
     user_id: int
+    user_name: Optional[str] = None
     product_id: int
     rating: int
     comment: Optional[str] = None

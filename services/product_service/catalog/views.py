@@ -25,7 +25,7 @@ class ProductViewSet(viewsets.ModelViewSet):
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ['category', 'seller_id']
     search_fields = ['name', 'description']
-    ordering_fields = ['price', 'created_at', 'is_premium']
+    ordering_fields = ['price', 'created_at', 'is_premium', 'name', 'stock']
     
     def filter_queryset(self, queryset):
         queryset = super().filter_queryset(queryset)
@@ -53,6 +53,11 @@ class ProductViewSet(viewsets.ModelViewSet):
         min_price = self.request.query_params.get('min_price')
         max_price = self.request.query_params.get('max_price')
         in_stock = self.request.query_params.get('in_stock')
+        stock_filter = self.request.query_params.get('stock_filter')
+        category_name = self.request.query_params.get('category_name')
+
+        if category_name:
+            qs = qs.filter(category__name=category_name)
 
         if min_price:
             try:
@@ -66,7 +71,13 @@ class ProductViewSet(viewsets.ModelViewSet):
             except ValueError:
                 pass
                 
-        if in_stock and in_stock.lower() == 'true':
+        if stock_filter == 'in_stock':
+            qs = qs.filter(stock__gt=10)
+        elif stock_filter == 'low_stock':
+            qs = qs.filter(stock__gt=0, stock__lte=10)
+        elif stock_filter == 'out_of_stock':
+            qs = qs.filter(stock=0)
+        elif in_stock and in_stock.lower() == 'true':
             qs = qs.filter(stock__gt=0)
 
         # Annotate for out_of_stock penalty (if stock == 0 -> penalty)
@@ -188,6 +199,8 @@ def get_bulk_products(request):
     data = [
         {
             'id': p.id,
+            'name': p.name,
+            'image_url': p.image_url,
             'price': float(p.price),
             'seller_id': p.seller_id,
             'stock': p.stock

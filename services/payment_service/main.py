@@ -184,15 +184,17 @@ def confirm_payment(
 
     if intent.status == "succeeded":
         # Check if it's a subscription payment
-        metadata = intent.get("metadata", {})
-        if metadata.get("type") == "subscription":
-            user_id = int(metadata.get("user_id"))
+        metadata = getattr(intent, "metadata", {})
+        if isinstance(metadata, dict) and metadata.get("type") == "subscription":
+            user_id_str = metadata.get("user_id")
             tier_str = metadata.get("tier")
-            try:
-                tier = models.SubscriptionTier(tier_str)
-                _set_subscription_tier(user_id, tier, db)
-            except ValueError:
-                pass
+            if user_id_str and tier_str:
+                try:
+                    user_id = int(user_id_str)
+                    tier = models.SubscriptionTier(tier_str)
+                    _set_subscription_tier(user_id, tier, db)
+                except ValueError:
+                    pass
             return {"status": "success"}
 
         payment = (
@@ -231,14 +233,16 @@ async def stripe_webhook(
         
         # Check if it's a subscription payment
         metadata = intent.get("metadata", {})
-        if metadata.get("type") == "subscription":
-            user_id = int(metadata.get("user_id"))
+        if isinstance(metadata, dict) and metadata.get("type") == "subscription":
+            user_id_str = metadata.get("user_id")
             tier_str = metadata.get("tier")
-            try:
-                tier = models.SubscriptionTier(tier_str)
-                _set_subscription_tier(user_id, tier, db)
-            except ValueError:
-                pass
+            if user_id_str and tier_str:
+                try:
+                    user_id = int(user_id_str)
+                    tier = models.SubscriptionTier(tier_str)
+                    _set_subscription_tier(user_id, tier, db)
+                except ValueError:
+                    pass
             return {"status": "success"}
 
         payment = (
@@ -246,7 +250,7 @@ async def stripe_webhook(
             .filter(models.Payment.stripe_payment_intent_id == intent["id"])
             .first()
         )
-        if payment:
+        if payment and payment.status != models.PaymentStatus.COMPLETED:
             payment.status = models.PaymentStatus.COMPLETED
             db.commit()
             publish_message(

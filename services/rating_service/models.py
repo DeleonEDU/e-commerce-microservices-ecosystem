@@ -7,6 +7,7 @@ class Review(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, index=True)
+    user_name = Column(String, nullable=True)
     product_id = Column(Integer, index=True)
     rating = Column(Integer)  # 1-5
     comment = Column(Text, nullable=True)
