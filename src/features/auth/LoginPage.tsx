@@ -20,7 +20,7 @@ const LoginPage: React.FC = () => {
   const { isAuthenticated } = useSelector((state: RootState) => state.auth);
 
   if (isAuthenticated) {
-    return <Navigate to="/" replace />;
+    return <Navigate to="/catalog" replace />;
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -38,7 +38,7 @@ const LoginPage: React.FC = () => {
         setError('Не вдалося завантажити профіль після входу. Спробуйте ще раз.');
         return;
       }
-      navigate('/');
+      navigate('/catalog');
     } catch (err: any) {
       setError(err.data?.detail || 'Невірний email або пароль');
     }

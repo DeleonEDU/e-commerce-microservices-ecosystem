@@ -141,7 +141,7 @@ const AppContent = () => {
       <Navbar />
       <main className="max-w-7xl mx-auto">
         <Routes>
-          <Route path="/" element={<Navigate to="/catalog" replace />} />
+          <Route path="/" element={<CatalogPage />} />
           <Route path="/catalog" element={<CatalogPage />} />
           <Route path="/product/:id" element={<ProductDetailPage />} />
           <Route path="/cart" element={<CartPage />} />
@@ -152,6 +152,7 @@ const AppContent = () => {
           <Route path="/favorites" element={<FavoritesPage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
+          <Route path="*" element={<Navigate to="/catalog" replace />} />
         </Routes>
       </main>
     </div>

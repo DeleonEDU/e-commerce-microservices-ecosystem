@@ -36,4 +36,4 @@ export const authApiSlice = apiSlice.injectEndpoints({
   }),
 });
 
-export const { useLoginMutation, useRegisterMutation, useGetProfileQuery, useGetSellerProfileQuery, useUpdateProfileMutation } = authApiSlice;
+export const { useLoginMutation, useRegisterMutation, useGetProfileQuery, useLazyGetProfileQuery, useGetSellerProfileQuery, useUpdateProfileMutation } = authApiSlice;
