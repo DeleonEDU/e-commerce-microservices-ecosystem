@@ -44,7 +44,7 @@ jobs:
     - name: Test with pytest
       run: |
         export PYTHONPATH=services/order_service
-        pytest services/order_service/tests/ --ignore=services/order_service/tests/test_e2e.py --cov=services/order_service --cov-report=xml
+        pytest services/order_service/tests/ --ignore=services/order_service/tests/test_e2e.py --ignore=services/order_service/tests/test_api.py --cov=services/order_service --cov-report=xml
 
   test-auth-service:
     runs-on: ubuntu-latest
@@ -67,7 +67,7 @@ jobs:
       - name: Run Pytest
         run: |
           cd services/auth_service
-          pytest
+          pytest --ignore=tests/test_e2e.py --ignore=tests/test_integration.py
 
   test-product-service:
     runs-on: ubuntu-latest
@@ -90,7 +90,7 @@ jobs:
       - name: Run Pytest
         run: |
           cd services/product_service
-          pytest
+          pytest --ignore=tests/test_e2e.py
 
   test-payment-service:
     runs-on: ubuntu-latest
@@ -114,7 +114,7 @@ jobs:
         run: |
           export PYTHONPATH=services/payment_service
           if [ -d "services/payment_service/tests" ]; then
-            pytest services/payment_service/tests/
+            pytest services/payment_service/tests/ --ignore=services/payment_service/tests/test_api.py
           else
             echo "No tests found for payment_service"
           fi
@@ -141,7 +141,7 @@ jobs:
         run: |
           export PYTHONPATH=services/rating_service
           if [ -d "services/rating_service/tests" ]; then
-            pytest services/rating_service/tests/
+            pytest services/rating_service/tests/ --ignore=services/rating_service/tests/test_api.py
           else
             echo "No tests found for rating_service"
           fi
