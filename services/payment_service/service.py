@@ -86,17 +86,29 @@ class PaymentService:
 
     def confirm_payment(self, intent: stripe.PaymentIntent):
         if intent.status == "succeeded":
-            metadata = getattr(intent, "metadata", {})
-            if isinstance(metadata, dict) and metadata.get("type") == "subscription":
+            metadata = getattr(intent, "metadata", None)
+            
+            # Extract metadata values whether it's a dict or StripeObject
+            is_sub = False
+            user_id_str = None
+            tier_str = None
+            
+            if isinstance(metadata, dict):
+                is_sub = metadata.get("type") == "subscription"
                 user_id_str = metadata.get("user_id")
                 tier_str = metadata.get("tier")
-                if user_id_str and tier_str:
-                    try:
-                        user_id = int(user_id_str)
-                        tier = models.SubscriptionTier(tier_str)
-                        self.set_subscription_tier(user_id, tier)
-                    except ValueError:
-                        pass
+            elif metadata is not None:
+                is_sub = getattr(metadata, "type", None) == "subscription"
+                user_id_str = getattr(metadata, "user_id", None)
+                tier_str = getattr(metadata, "tier", None)
+
+            if is_sub and user_id_str and tier_str:
+                try:
+                    user_id = int(user_id_str)
+                    tier = models.SubscriptionTier(tier_str)
+                    self.set_subscription_tier(user_id, tier)
+                except ValueError:
+                    pass
                 return
 
             payment = self.repository.get_payment_by_stripe_id(intent.id)
