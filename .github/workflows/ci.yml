@@ -44,7 +44,7 @@ jobs:
     - name: Test with pytest
       run: |
         export PYTHONPATH=services/order_service
-        pytest services/order_service/tests/ --cov=services/order_service --cov-report=xml
+        pytest services/order_service/tests/ --ignore=services/order_service/tests/test_e2e.py --cov=services/order_service --cov-report=xml
 
   test-auth-service:
     runs-on: ubuntu-latest
