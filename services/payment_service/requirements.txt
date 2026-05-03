@@ -9,3 +9,9 @@ python-dotenv
 pika
 requests
 stripe
+
+pytest
+pytest-cov
+httpx
+pytest-asyncio
+pytest-mock

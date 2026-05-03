@@ -4,3 +4,8 @@ djangorestframework-simplejwt
 psycopg2-binary
 python-dotenv
 django-cors-headers
+
+pytest
+pytest-django
+pytest-cov
+pytest-mock

@@ -21,29 +21,11 @@ class UserProfileView(APIView):
 
     def patch(self, request):
         user = request.user
-        role = request.data.get('role')
-        phone_number = request.data.get('phone_number')
-        username = request.data.get('username')
-        store_name = request.data.get('store_name')
-        store_description = request.data.get('store_description')
-        store_logo = request.data.get('store_logo')
-        
-        if role in dict(UserRole.choices).keys():
-            user.role = role
-        if phone_number is not None:
-            user.phone_number = phone_number
-        if username is not None:
-            user.username = username
-        if store_name is not None:
-            user.store_name = store_name
-        if store_description is not None:
-            user.store_description = store_description
-        if store_logo is not None:
-            user.store_logo = store_logo
-            
-        user.save()
-        serializer = UserSerializer(user)
-        return Response(serializer.data)
+        serializer = UserSerializer(user, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 class SellerProfileView(APIView):
     permission_classes = (permissions.AllowAny,)

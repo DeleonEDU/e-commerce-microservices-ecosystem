@@ -61,6 +61,17 @@ docker-compose.override.yml
 # DB
 *.sqlite3
 db.sqlite3
+*.db
+test.db
+test_*.db
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+coverage.xml
+.hypothesis/
 
 # Logs
 *.log

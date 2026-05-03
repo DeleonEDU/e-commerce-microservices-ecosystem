@@ -8,3 +8,8 @@ redis
 django-cors-headers
 requests
 djangorestframework-simplejwt
+
+pytest
+pytest-django
+pytest-cov
+pytest-mock

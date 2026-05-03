@@ -6,3 +6,9 @@ pydantic
 pydantic-settings
 python-dotenv
 requests
+
+pytest
+pytest-cov
+httpx
+pytest-asyncio
+pytest-mock

@@ -1,6 +1,6 @@
 # E-commerce Microservices Ecosystem
 
-[![CI Pipeline](https://github.comDeleonEDU/e-commerce-microservices-ecosystem/actions/workflows/ci.yml/badge.svg)](https://github.com/DeleonEDU/e-commerce-microservices-ecosystem/actions/workflows/ci.yml)
+[![CI Pipeline](https://github.com/DeleonEDU/e-commerce-microservices-ecosystem/actions/workflows/ci.yml/badge.svg)](https://github.com/DeleonEDU/e-commerce-microservices-ecosystem/actions/workflows/ci.yml)
 
 ## 📖 Документація (Documentation)
 
@@ -15,14 +15,16 @@
 ### Структура проекту
 ```text
 src/
-├── api/             # RTK Query API slices
-├── components/      # Спільні UI компоненти
-├── features/        # Логіка за фічами (auth, cart, catalog)
-├── pages/           # Компоненти сторінок
-├── store/           # Конфігурація Redux Store
-├── types/           # TypeScript інтерфейси
-├── utils/           # Допоміжні функції
+├── api/             # RTK Query API slices (authApiSlice, productApiSlice, etc.)
+├── components/      # Спільні UI компоненти (ProductCard, PaymentModal, etc.)
+│   └── ui/          # Базові компоненти (Button, AlertModal)
+├── features/        # Логіка за фічами (auth, cart, favorites)
+├── pages/           # Компоненти сторінок (CatalogPage, DashboardPage, etc.)
+├── store/           # Конфігурація Redux Store (store.ts, apiSlice.ts)
+├── types/           # TypeScript інтерфейси (product.ts, user.ts, etc.)
+├── utils/           # Допоміжні функції (format.ts, cn.ts)
 ├── App.tsx          # Головний компонент та роутинг
+├── index.css        # Глобальні стилі (Tailwind)
 └── main.tsx         # Точка входу
 ```
 
@@ -48,6 +50,7 @@ src/
 │   │   │   ├── serializers.py
 │   │   │   ├── views.py
 │   │   │   └── urls.py
+│   │   ├── tests/           # Unit та Integration тести
 │   │   └── requirements.txt
 │   ├── product_service/     # Django DRF (Catalog)
 │   │   ├── product_service/
@@ -57,31 +60,48 @@ src/
 │   │   │   ├── models.py
 │   │   │   ├── serializers.py
 │   │   │   └── views.py
+│   │   ├── tests/           # Unit та Integration тести
 │   │   └── requirements.txt
 │   ├── order_service/       # FastAPI (Orders & Cart)
 │   │   ├── main.py
 │   │   ├── worker.py          # RabbitMQ Consumer
+│   │   ├── service.py         # Бізнес логіка
+│   │   ├── repository.py      # Патерн Repository
 │   │   ├── models.py
 │   │   ├── schemas.py
 │   │   ├── database.py
 │   │   ├── redis_client.py
+│   │   ├── tests/           # Unit, Integration, E2E тести
 │   │   └── requirements.txt
 │   ├── payment_service/     # FastAPI (Stripe & Subscriptions)
 │   │   ├── main.py
+│   │   ├── service.py         # Бізнес логіка
+│   │   ├── repository.py      # Патерн Repository
+│   │   ├── rabbitmq_client.py
 │   │   ├── models.py
 │   │   ├── schemas.py
 │   │   ├── database.py
+│   │   ├── tests/           # Unit, Integration, E2E тести
 │   │   └── requirements.txt
 │   ├── rating_service/      # FastAPI (Reviews & Ratings)
 │   │   ├── main.py
+│   │   ├── service.py         # Бізнес логіка
+│   │   ├── repository.py      # Патерн Repository
 │   │   ├── models.py
 │   │   ├── schemas.py
 │   │   ├── database.py
+│   │   ├── tests/           # Unit, Integration, E2E тести
 │   │   └── requirements.txt
 ├── gateway/                 # Nginx API Gateway
 │   └── nginx.conf           # Конфігурація маршрутизації
-├── scripts/
+├── scripts/                 # Допоміжні скрипти
 │   └── init-db.sh           # Скрипт ініціалізації БД
+├── docs/                    # Документація проекту
+│   ├── architecture.md      # Архітектура, патерни та БД
+│   ├── code_quality.md      # Якість коду та тестування
+│   └── deployment.md        # CI/CD, DevOps
+├── .github/workflows/       # CI/CD пайплайни
+│   └── ci.yml
 ├── docker-compose.yml       # Спільна інфраструктура
 ├── .env.example             # Приклад змінних оточення
 └── README.md
@@ -98,14 +118,3 @@ src/
    docker-compose up --build -d
    ```
    Це автоматично збере образи для кожного мікросервісу та запустить їх разом з інфраструктурою.
-
-3. **Перевірка:**
-   - **Gateway:** `http://localhost` (порт 80)
-   - **RabbitMQ Management:** `http://localhost:15672`
-
----
-**Наступний крок:** Який мікросервіс ми будемо розробляти наступним?
-- Auth & User Service (Django DRF)
-- Product Service (Django DRF)
-- Order Service (FastAPI)
-- Payment Service (FastAPI)

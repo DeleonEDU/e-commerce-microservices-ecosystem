@@ -25,15 +25,15 @@ def override_get_db():
     finally:
         db.close()
 
-app.dependency_overrides[get_db] = override_get_db
-
 client = TestClient(app)
 
 @pytest.fixture(autouse=True)
 def cleanup_db():
+    app.dependency_overrides[get_db] = override_get_db
     Base.metadata.drop_all(bind=test_engine)
     Base.metadata.create_all(bind=test_engine)
     yield
+    app.dependency_overrides.clear()
 
 def test_health():
     response = client.get("/health")
