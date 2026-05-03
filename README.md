@@ -1,5 +1,15 @@
 # E-commerce Microservices Ecosystem
 
+[![CI Pipeline](https://github.comDeleonEDU/e-commerce-microservices-ecosystem/actions/workflows/ci.yml/badge.svg)](https://github.com/DeleonEDU/e-commerce-microservices-ecosystem/actions/workflows/ci.yml)
+
+## 📖 Документація (Documentation)
+
+Повна документація до проєкту (згідно з академічними вимогами курсу) знаходиться у папці `/docs/`. 
+Будь ласка, ознайомтесь з:
+1. [Архітектурою, Шаблонами та БД (Layered Architecture, Repository, SOLID, ER Diagram)](./docs/architecture.md)
+2. [Якість коду, Тестування та Рефакторинг](./docs/code_quality.md)
+3. [DevOps, CI/CD, Docker та Розгортання](./docs/deployment.md)
+
 ## Frontend (React SPA)
 
 ### Структура проекту
