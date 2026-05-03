@@ -96,8 +96,10 @@ def test_deliver_item_success(service, mock_repo):
 
 def test_get_seller_analytics(service, mock_repo):
     seller_id = 1
-    mock_item1 = MagicMock(price=10.0, quantity=2, product_id=100, order=MagicMock(created_at=None))
-    mock_item2 = MagicMock(price=20.0, quantity=1, product_id=101, order=MagicMock(created_at=None))
+    from datetime import datetime
+    now = datetime.utcnow()
+    mock_item1 = MagicMock(price=10.0, quantity=2, product_id=100, order=MagicMock(created_at=now))
+    mock_item2 = MagicMock(price=20.0, quantity=1, product_id=101, order=MagicMock(created_at=now))
     
     mock_repo.get_seller_analytics_items.return_value = [mock_item1, mock_item2]
 

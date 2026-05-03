@@ -170,7 +170,7 @@ class OrderService:
             top_products_dict[item.product_id]["revenue"] += item.price * item.quantity
             top_products_dict[item.product_id]["sales"] += item.quantity
             
-            if item.order and item.order.created_at >= thirty_days_ago:
+            if item.order and item.order.created_at and item.order.created_at >= thirty_days_ago:
                 date_str = item.order.created_at.strftime("%Y-%m-%d")
                 sales_by_date_dict[date_str]["revenue"] += item.price * item.quantity
                 sales_by_date_dict[date_str]["sales"] += item.quantity
