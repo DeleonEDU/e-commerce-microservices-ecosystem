@@ -8,3 +8,6 @@ redis
 python-dotenv
 pika
 requests
+pytest
+pytest-cov
+httpx
