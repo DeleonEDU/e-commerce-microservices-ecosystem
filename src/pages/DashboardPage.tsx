@@ -221,8 +221,13 @@ const DashboardPage: React.FC = () => {
     navigate('/login');
   };
 
+  React.useEffect(() => {
+    if (!isAuthenticated) {
+      navigate('/login');
+    }
+  }, [isAuthenticated, navigate]);
+
   if (!isAuthenticated) {
-    navigate('/login');
     return null;
   }
 

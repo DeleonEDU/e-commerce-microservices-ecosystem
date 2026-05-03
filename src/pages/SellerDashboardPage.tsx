@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { useSelector } from 'react-redux';
 import { useNavigate, Link } from 'react-router-dom';
 import { 
@@ -172,8 +172,13 @@ const SellerDashboardPage: React.FC = () => {
     }
   };
 
+  useEffect(() => {
+    if (!isAuthenticated || user?.role !== 'seller') {
+      navigate('/');
+    }
+  }, [isAuthenticated, user?.role, navigate]);
+
   if (!isAuthenticated || user?.role !== 'seller') {
-    navigate('/');
     return null;
   }
 
