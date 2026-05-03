@@ -16,7 +16,8 @@ load_dotenv()
 
 STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET", "whsec_mock_secret")
 
-Base.metadata.create_all(bind=engine)
+if not os.getenv("TESTING"):
+    Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="Payment Service", version="1.0.0")
 

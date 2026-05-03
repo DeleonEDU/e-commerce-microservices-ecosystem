@@ -6,9 +6,8 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
-from database import Base, get_db
-from main import app, STRIPE_WEBHOOK_SECRET
 import models
+from database import Base, get_db
 
 # Set up SQLite memory DB for testing
 SQLALCHEMY_DATABASE_URL = "sqlite:///:memory:"
@@ -28,6 +27,11 @@ def override_get_db():
         yield db
     finally:
         db.close()
+
+# Import app AFTER setting up the testing DB bindings
+import os
+os.environ["TESTING"] = "1"
+from main import app, STRIPE_WEBHOOK_SECRET
 
 app.dependency_overrides[get_db] = override_get_db
 
