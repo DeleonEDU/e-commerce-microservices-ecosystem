@@ -57,8 +57,9 @@ jobs:
 
       - name: Test with pytest and generate coverage
         run: |
-          export PYTHONPATH=services/${{ matrix.service }}
           cd services/${{ matrix.service }}
+          # PYTHONPATH must be the service root; a path relative to repo root breaks after `cd`.
+          export PYTHONPATH="${GITHUB_WORKSPACE}/services/${{ matrix.service }}"
           if [ "${{ matrix.service }}" = "auth_service" ]; then
             pytest users/tests.py tests/ --cov=. --cov-report=xml --cov-report=html --cov-fail-under=70
           elif [ "${{ matrix.service }}" = "product_service" ]; then
