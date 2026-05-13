@@ -168,7 +168,7 @@ services:
 
   frontend:
     build:
-      context: .
+      context: ./frontend
       dockerfile: Dockerfile
       target: dev
     container_name: ecommerce_frontend

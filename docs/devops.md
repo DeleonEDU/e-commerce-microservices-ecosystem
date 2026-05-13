@@ -11,6 +11,8 @@
 ## 2. SonarCloud & Quality Gate
 - Connect your repository to SonarCloud.
 - Obtain the `SONAR_TOKEN` and add it to GitHub Repository Secrets.
+- **CI vs Automatic Analysis (AutoScan):** SonarCloud allows only one analysis mode per project. This repo uses **GitHub Actions** (`SonarSource/sonarqube-scan-action`). In SonarCloud open **Project → Administration → Analysis Method** (or **Project configuration → Automatic Analysis**) and **turn off Automatic Analysis**. If AutoScan stays on, the CI step fails with: *"You are running CI analysis while Automatic Analysis is enabled."*  
+  - AutoScan page example: `https://sonarcloud.io/project/configuration/AutoScan?id=<your_project_key>`
 - In SonarCloud, define a Quality Gate with the following constraints:
   - **Coverage on New Code** >= 70%
   - **Overall Coverage** >= 70%
