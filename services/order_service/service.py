@@ -107,6 +107,10 @@ class OrderService:
         loaded_order = self.repository.get_order_by_id(created_order.id)
         if not loaded_order:
             raise HTTPException(status_code=500, detail="Failed to load created order")
+            
+        from observers import order_subject
+        order_subject.notify(loaded_order)
+            
         return loaded_order
 
     def approve_item(self, seller_id: int, item_id: int) -> dict:
@@ -126,6 +130,8 @@ class OrderService:
             if all_approved:
                 order.status = models.OrderStatus.SHIPPED
                 self.repository.update_order(order)
+                from observers import order_subject
+                order_subject.notify(order)
                 
         return {"status": "success", "is_approved": True}
 
@@ -149,6 +155,8 @@ class OrderService:
             if all_delivered:
                 order.status = models.OrderStatus.DELIVERED
                 self.repository.update_order(order)
+                from observers import order_subject
+                order_subject.notify(order)
                 
         return {"status": "success", "is_delivered": True}
 

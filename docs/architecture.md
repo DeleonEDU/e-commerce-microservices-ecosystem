@@ -10,21 +10,27 @@
 ### C4 Model: Контекст системи (System Context Diagram)
 
 ```mermaid
-C4Context
-    title System Context diagram for E-Commerce Microservices Ecosystem
+flowchart TD
+    customer["🧑 Customer<br/>(A customer who buys products, leaves reviews.)"]
+    seller["🧑 Seller<br/>(A seller who manages products, inventory, and fulfills orders.)"]
+    admin["🧑 Admin<br/>(Manages the platform, users, and overall system.)"]
 
-    Person(customer, "Customer", "A customer who buys products, leaves reviews.")
-    Person(seller, "Seller", "A seller who manages products, inventory, and fulfills orders.")
-    Person(admin, "Admin", "Manages the platform, users, and overall system.")
+    ecommerce_system["⚙️ E-Commerce System<br/>(Allows customers to buy products, sellers to manage inventory, and handles payments.)"]
+    
+    stripe["💳 Stripe Payment Gateway<br/>(External system for handling credit card payments.)"]
 
-    System(ecommerce_system, "E-Commerce System", "Allows customers to buy products, sellers to manage inventory, and handles payments.")
+    customer -->|"Browses products, places orders, pays, reviews"| ecommerce_system
+    seller -->|"Manages catalog, views analytics, approves shipments"| ecommerce_system
+    admin -->|"Administers platform"| ecommerce_system
+    ecommerce_system -->|"Processes payments"| stripe
 
-    System_Ext(stripe, "Stripe Payment Gateway", "External system for handling credit card payments.")
+    classDef person fill:#08427b,color:#fff,stroke:#052e56
+    classDef system fill:#1168bd,color:#fff,stroke:#0b4884
+    classDef ext_system fill:#999999,color:#fff,stroke:#6b6b6b
 
-    Rel(customer, ecommerce_system, "Browses products, places orders, pays, reviews")
-    Rel(seller, ecommerce_system, "Manages catalog, views analytics, approves shipments")
-    Rel(admin, ecommerce_system, "Administers platform")
-    Rel(ecommerce_system, stripe, "Processes payments")
+    class customer,seller,admin person
+    class ecommerce_system system
+    class stripe ext_system
 ```
 
 ### Опис Мікросервісів
@@ -61,28 +67,32 @@ C4Context
 ### C4 Model: Діаграма Компонентів (на прикладі Order Service)
 
 ```mermaid
-C4Component
-    title Component diagram for Order Service
+flowchart TD
+    api_gateway["API Gateway<br/>[Container: Nginx]<br/>Routes incoming requests"]
+    db_order[("Order Database<br/>[Container: PostgreSQL]<br/>Stores orders and carts")]
+    product_service["Product Service<br/>[Container: Django]<br/>Manages inventory"]
 
-    Container(api_gateway, "API Gateway", "Nginx", "Routes incoming requests")
-    ContainerDb(db_order, "Order Database", "PostgreSQL", "Stores orders and carts.", $tags="db")
-    Container(product_service, "Product Service", "Django", "Manages inventory")
+    subgraph order_service ["Order Service (FastAPI)"]
+        routers["API Routers<br/>[Component: FastAPI Routes]<br/>Handles HTTP requests, JSON validation via Pydantic."]
+        service_layer["Order Service Layer<br/>[Component: Python Class]<br/>Contains core business logic. Coordinates repositories and external services."]
+        repository["Order Repository<br/>[Component: Python Class]<br/>Abstracts SQLAlchemy ORM. Executes SQL queries against the database."]
+        redis_lock["Distributed Lock<br/>[Component: Redis Client]<br/>Ensures atomic stock decrement operations."]
+    end
 
-    Container_Boundary(order_service, "Order Service (FastAPI)") {
-        Component(routers, "API Routers", "FastAPI Routes", "Handles HTTP requests, JSON validation via Pydantic.")
-        Component(service_layer, "Order Service Layer", "Python Class", "Contains core business logic. Coordinates repositories and external services.")
-        Component(repository, "Order Repository", "Python Class", "Abstracts SQLAlchemy ORM. Executes SQL queries against the database.")
-        Component(redis_lock, "Distributed Lock", "Redis Client", "Ensures atomic stock decrement operations.")
-    }
+    api_gateway -->|"Makes HTTP calls to<br/>[JSON/HTTPS]"| routers
+    routers -->|"Uses<br/>[Dependency Injection]"| service_layer
+    service_layer -->|"Uses<br/>[Dependency Injection]"| repository
+    service_layer -->|"Acquires lock before external call"| redis_lock
+    service_layer -->|"Calls /decrement_stock API<br/>[HTTP]"| product_service
+    repository -->|"Reads/Writes via SQLAlchemy"| db_order
 
-    Rel(api_gateway, routers, "Makes HTTP calls to", "JSON/HTTPS")
-    Rel(routers, service_layer, "Uses (Dependency Injection)")
-    Rel(service_layer, repository, "Uses (Dependency Injection)")
-    Rel(service_layer, redis_lock, "Acquires lock before external call")
-    Rel(service_layer, product_service, "Calls /decrement_stock API", "HTTP")
-    Rel(repository, db_order, "Reads/Writes via SQLAlchemy")
-
-    UpdateElementStyle(db_order, $fontColor="white", $bgColor="#3b82f6", $borderColor="#1d4ed8")
+    classDef container fill:#438dd5,color:#fff,stroke:#2e6295
+    classDef database fill:#3b82f6,color:#fff,stroke:#1d4ed8
+    classDef component fill:#85bbf0,color:#000,stroke:#5d82a8
+    
+    class api_gateway,product_service container
+    class db_order database
+    class routers,service_layer,repository,redis_lock component
 ```
 
 У проєкті застосовано наступні шаблони (Gang of Four):
@@ -203,71 +213,76 @@ erDiagram
 ### C4 Model: Діаграма контейнерів (Container Diagram)
 
 ```mermaid
-C4Container
-    title Container diagram for E-Commerce System
+flowchart TD
+    customer["🧑 Customer<br/>(Buys products)"]
+    seller["🧑 Seller<br/>(Sells products)"]
 
-    Person(customer, "Customer", "Buys products")
-    Person(seller, "Seller", "Sells products")
+    spa["📱 Single Page Application<br/>[Container: React, TypeScript]<br/>Provides all functionality to customers and sellers via their browser."]
+    api_gateway["🔀 API Gateway<br/>[Container: Nginx]<br/>Routes requests to the correct microservice based on the path."]
 
-    Container(spa, "Single Page Application", "React, TypeScript", "Provides all functionality to customers and sellers via their browser.")
-    Container(api_gateway, "API Gateway", "Nginx", "Routes requests to the correct microservice based on the path.")
+    auth_service["🔐 Auth Service<br/>[Container: Django REST Framework]<br/>Handles user registration, authentication (JWT), and roles."]
+    db_auth[("🗄️ Auth Database<br/>[Container: PostgreSQL]<br/>Stores user credentials and profiles.")]
 
-    Container(auth_service, "Auth Service", "Django REST Framework", "Handles user registration, authentication (JWT), and roles.")
-    ContainerDb(db_auth, "Auth Database", "PostgreSQL", "Stores user credentials and profiles.", $tags="db")
+    product_service["📦 Product Service<br/>[Container: Django REST Framework]<br/>Manages product catalog and inventory."]
+    db_product[("🗄️ Product Database<br/>[Container: PostgreSQL]<br/>Stores products and categories.")]
+    redis_cache[("⚡ Redis Cache<br/>[Container: Redis]<br/>Distributed locks for stock management.")]
 
-    Container(product_service, "Product Service", "Django REST Framework", "Manages product catalog and inventory.")
-    ContainerDb(db_product, "Product Database", "PostgreSQL", "Stores products and categories.", $tags="db")
-    ContainerDb(redis_cache, "Redis Cache", "Redis", "Distributed locks for stock management.", $tags="db")
+    order_service["🛒 Order Service<br/>[Container: FastAPI]<br/>Manages shopping carts and order fulfillment."]
+    db_order[("🗄️ Order Database<br/>[Container: PostgreSQL]<br/>Stores orders and carts.")]
 
-    Container(order_service, "Order Service", "FastAPI", "Manages shopping carts and order fulfillment.")
-    ContainerDb(db_order, "Order Database", "PostgreSQL", "Stores orders and carts.", $tags="db")
+    payment_service["💳 Payment Service<br/>[Container: FastAPI]<br/>Handles payment intents and webhooks."]
+    db_payment[("🗄️ Payment Database<br/>[Container: PostgreSQL]<br/>Stores payment transactions.")]
 
-    Container(payment_service, "Payment Service", "FastAPI", "Handles payment intents and webhooks.")
-    ContainerDb(db_payment, "Payment Database", "PostgreSQL", "Stores payment transactions.", $tags="db")
+    rating_service["⭐ Rating Service<br/>[Container: FastAPI]<br/>Manages product reviews and ratings."]
+    db_rating[("🗄️ Rating Database<br/>[Container: PostgreSQL]<br/>Stores reviews and ratings cache.")]
 
-    Container(rating_service, "Rating Service", "FastAPI", "Manages product reviews and ratings.")
-    ContainerDb(db_rating, "Rating Database", "PostgreSQL", "Stores reviews and ratings cache.", $tags="db")
+    rabbitmq{{"📨 Message Broker<br/>[Container: RabbitMQ]<br/>Asynchronous communication bus."}}
+    order_worker["⚙️ Order Worker<br/>[Container: Python]<br/>Background worker listening to RabbitMQ to update order statuses."]
 
-    ContainerQueue(rabbitmq, "Message Broker", "RabbitMQ", "Asynchronous communication bus.")
-    Container(order_worker, "Order Worker", "Python", "Background worker listening to RabbitMQ to update order statuses.")
+    stripe["🏦 Stripe<br/>[External System]<br/>Payment Gateway"]
 
-    System_Ext(stripe, "Stripe", "Payment Gateway")
-
-    Rel(customer, spa, "Uses", "HTTPS")
-    Rel(seller, spa, "Uses", "HTTPS")
+    customer -->|"Uses [HTTPS]"| spa
+    seller -->|"Uses [HTTPS]"| spa
     
-    Rel(spa, api_gateway, "Makes API calls to", "JSON/HTTPS")
+    spa -->|"Makes API calls to [JSON/HTTPS]"| api_gateway
     
-    Rel(api_gateway, auth_service, "Routes to", "HTTP")
-    Rel(api_gateway, product_service, "Routes to", "HTTP")
-    Rel(api_gateway, order_service, "Routes to", "HTTP")
-    Rel(api_gateway, payment_service, "Routes to", "HTTP")
-    Rel(api_gateway, rating_service, "Routes to", "HTTP")
+    api_gateway -->|"Routes to [HTTP]"| auth_service
+    api_gateway -->|"Routes to [HTTP]"| product_service
+    api_gateway -->|"Routes to [HTTP]"| order_service
+    api_gateway -->|"Routes to [HTTP]"| payment_service
+    api_gateway -->|"Routes to [HTTP]"| rating_service
 
-    Rel(auth_service, db_auth, "Reads/Writes")
-    Rel(product_service, db_product, "Reads/Writes")
-    Rel(product_service, redis_cache, "Uses for distributed locks")
-    Rel(order_service, db_order, "Reads/Writes")
-    Rel(payment_service, db_payment, "Reads/Writes")
-    Rel(rating_service, db_rating, "Reads/Writes")
-    Rel(order_worker, db_order, "Writes")
+    auth_service -->|"Reads/Writes"| db_auth
+    product_service -->|"Reads/Writes"| db_product
+    product_service -->|"Uses for distributed locks"| redis_cache
+    order_service -->|"Reads/Writes"| db_order
+    payment_service -->|"Reads/Writes"| db_payment
+    rating_service -->|"Reads/Writes"| db_rating
+    order_worker -->|"Writes"| db_order
 
-    Rel(order_service, product_service, "Checks and decrements stock", "REST/HTTP")
-    Rel(rating_service, order_service, "Verifies purchase", "REST/HTTP")
-    Rel(payment_service, product_service, "Updates seller premium status", "REST/HTTP")
+    order_service -->|"Checks and decrements stock [REST/HTTP]"| product_service
+    rating_service -->|"Verifies purchase [REST/HTTP]"| order_service
+    payment_service -->|"Updates seller premium status [REST/HTTP]"| product_service
 
-    Rel(payment_service, stripe, "Creates PaymentIntent", "HTTPS")
-    Rel(stripe, payment_service, "Sends Webhook", "HTTPS")
+    payment_service -->|"Creates PaymentIntent [HTTPS]"| stripe
+    stripe -->|"Sends Webhook [HTTPS]"| payment_service
 
-    Rel(payment_service, rabbitmq, "Publishes 'order_paid' event")
-    Rel(rabbitmq, order_worker, "Consumes 'order_paid' event")
+    payment_service -->|"Publishes 'order_paid' event"| rabbitmq
+    rabbitmq -->|"Consumes 'order_paid' event"| order_worker
 
-    UpdateElementStyle(db_auth, $fontColor="white", $bgColor="#3b82f6", $borderColor="#1d4ed8")
-    UpdateElementStyle(db_product, $fontColor="white", $bgColor="#3b82f6", $borderColor="#1d4ed8")
-    UpdateElementStyle(db_order, $fontColor="white", $bgColor="#3b82f6", $borderColor="#1d4ed8")
-    UpdateElementStyle(db_payment, $fontColor="white", $bgColor="#3b82f6", $borderColor="#1d4ed8")
-    UpdateElementStyle(db_rating, $fontColor="white", $bgColor="#3b82f6", $borderColor="#1d4ed8")
-    UpdateElementStyle(redis_cache, $fontColor="white", $bgColor="#ef4444", $borderColor="#b91c1c")
+    classDef person fill:#08427b,color:#fff,stroke:#052e56
+    classDef container fill:#438dd5,color:#fff,stroke:#2e6295
+    classDef database fill:#3b82f6,color:#fff,stroke:#1d4ed8
+    classDef ext_system fill:#999999,color:#fff,stroke:#6b6b6b
+    classDef queue fill:#e09a34,color:#fff,stroke:#a66c1b
+    classDef redis fill:#ef4444,color:#fff,stroke:#b91c1c
+
+    class customer,seller person
+    class spa,api_gateway,auth_service,product_service,order_service,payment_service,rating_service,order_worker container
+    class db_auth,db_product,db_order,db_payment,db_rating database
+    class stripe ext_system
+    class rabbitmq queue
+    class redis_cache redis
 ```
 
 ### Синхронна взаємодія (REST API / HTTP)

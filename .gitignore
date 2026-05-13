@@ -55,7 +55,8 @@ Thumbs.db
 .vscode/
 *.swp
 *.swo
-.cursor/
+.cursor/*
+!.cursor/rules/
 
 # Docker
 docker-compose.override.yml
@@ -63,18 +64,46 @@ docker-compose.override.yml
 
 # DB
 *.sqlite3
+*.sqlite3-journal
+*.sqlite3-wal
+*.sqlite3-shm
 db.sqlite3
 *.db
 test.db
 test_*.db
+test_*.sqlite3
 
 # Testing
 .pytest_cache/
 .coverage
+.coverage.*
 htmlcov/
 .tox/
+.nox/
 coverage.xml
 .hypothesis/
 
-# Logs
+# Logs and Runtime
 *.log
+*.pid
+*.sock
+celerybeat-schedule
+celerybeat.pid
+
+# Django
+media/
+static/
+staticfiles/
+local_settings.py
+
+# TypeScript / Vite
+*.tsbuildinfo
+
+# Static analysis & local Sonar
+.mypy_cache/
+.ruff_cache/
+.dmypy.json
+dmypy.json
+.scannerwork/
+.sonar/
+

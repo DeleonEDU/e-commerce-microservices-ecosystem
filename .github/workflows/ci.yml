@@ -17,137 +17,89 @@ jobs:
           node-version: '20'
           cache: 'npm'
       - name: Install dependencies
-        run: npm ci
+        run: cd frontend && npm ci
       - name: Lint
-        run: npm run lint
+        run: cd frontend && npm run lint
       - name: Build frontend
-        run: npm run build
+        run: cd frontend && npm run build
 
-  test-order-service:
+  test-services:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service: [auth_service, product_service, order_service, payment_service, rating_service]
     steps:
     - uses: actions/checkout@v4
+    
     - name: Set up Python 3.10
       uses: actions/setup-python@v4
       with:
         python-version: '3.10'
         cache: 'pip'
+        
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install -r services/order_service/requirements.txt
-        pip install pytest pytest-cov flake8
+        pip install -r services/${{ matrix.service }}/requirements.txt
+        pip install pytest pytest-cov pytest-mock pytest-django httpx-mock flake8
+        
     - name: Lint with flake8
       run: |
-        flake8 services/order_service --count --select=E9,F63,F7,F82 --show-source --statistics
-        flake8 services/order_service --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
-    - name: Test with pytest
+        flake8 services/${{ matrix.service }} --count --select=E9,F63,F7,F82 --show-source --statistics
+        flake8 services/${{ matrix.service }} --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+        
+    - name: Test with pytest and generate coverage
       run: |
-        export PYTHONPATH=services/order_service
-        pytest services/order_service/tests/ --ignore=services/order_service/tests/test_e2e.py --ignore=services/order_service/tests/test_api.py --cov=services/order_service --cov-report=xml
+        export PYTHONPATH=services/${{ matrix.service }}
+        cd services/${{ matrix.service }}
+        if [ "${{ matrix.service }}" = "auth_service" ]; then
+          pytest users/tests.py tests/ --cov=. --cov-report=xml --cov-report=html --cov-fail-under=70
+        elif [ "${{ matrix.service }}" = "product_service" ]; then
+          pytest catalog/tests.py tests/ --cov=. --cov-report=xml --cov-report=html --cov-fail-under=70
+        elif [ -d "tests" ]; then
+          pytest tests/ --cov=. --cov-report=xml --cov-report=html --cov-fail-under=70
+        else
+          echo "No tests directory for ${{ matrix.service }}"
+          exit 1
+        fi
+        
+    - name: Upload HTML/XML reports as artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: coverage-report-${{ matrix.service }}
+        path: |
+          services/${{ matrix.service }}/coverage.xml
+          services/${{ matrix.service }}/htmlcov/
+        retention-days: 7
 
-  test-auth-service:
+  sonarcloud:
+    needs: [test-services]
+    if: ${{ secrets.SONAR_TOKEN != '' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Set up Python 3.10
-        uses: actions/setup-python@v4
         with:
-          python-version: '3.10'
-          cache: 'pip'
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r services/auth_service/requirements.txt
-          pip install flake8 pytest pytest-django requests
-      - name: Lint with flake8
-        run: |
-          flake8 services/auth_service --count --select=E9,F63,F7,F82 --show-source --statistics
-          flake8 services/auth_service --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
-      - name: Run Pytest
-        run: |
-          cd services/auth_service
-          pytest --ignore=tests/test_e2e.py --ignore=tests/test_integration.py
-
-  test-product-service:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Set up Python 3.10
-        uses: actions/setup-python@v4
+          fetch-depth: 0
+      - name: Download all coverage reports
+        uses: actions/download-artifact@v4
         with:
-          python-version: '3.10'
-          cache: 'pip'
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r services/product_service/requirements.txt
-          pip install flake8 pytest pytest-django
-      - name: Lint with flake8
-        run: |
-          flake8 services/product_service --count --select=E9,F63,F7,F82 --show-source --statistics
-          flake8 services/product_service --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
-      - name: Run Pytest
-        run: |
-          cd services/product_service
-          pytest --ignore=tests/test_e2e.py
-
-  test-payment-service:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Set up Python 3.10
-        uses: actions/setup-python@v4
+          path: coverage-reports
+      - name: SonarCloud Scan
+        uses: SonarSource/sonarcloud-github-action@master
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         with:
-          python-version: '3.10'
-          cache: 'pip'
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r services/payment_service/requirements.txt
-          pip install flake8 pytest
-      - name: Lint with flake8
-        run: |
-          flake8 services/payment_service --count --select=E9,F63,F7,F82 --show-source --statistics
-          flake8 services/payment_service --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
-      - name: Run Tests
-        run: |
-          export PYTHONPATH=services/payment_service
-          if [ -d "services/payment_service/tests" ]; then
-            pytest services/payment_service/tests/ --ignore=services/payment_service/tests/test_api.py
-          else
-            echo "No tests found for payment_service"
-          fi
-
-  test-rating-service:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Set up Python 3.10
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.10'
-          cache: 'pip'
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r services/rating_service/requirements.txt
-          pip install flake8 pytest
-      - name: Lint with flake8
-        run: |
-          flake8 services/rating_service --count --select=E9,F63,F7,F82 --show-source --statistics
-          flake8 services/rating_service --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
-      - name: Run Tests
-        run: |
-          export PYTHONPATH=services/rating_service
-          if [ -d "services/rating_service/tests" ]; then
-            pytest services/rating_service/tests/ --ignore=services/rating_service/tests/test_api.py
-          else
-            echo "No tests found for rating_service"
-          fi
+          args: >
+            -Dsonar.projectKey=DeleonEDU_e-commerce-microservices-ecosystem
+            -Dsonar.organization=DeleonEDU
+            -Dsonar.python.coverage.reportPaths=coverage-reports/**/coverage.xml
+            -Dsonar.sources=services/
+            -Dsonar.tests=services/
+            -Dsonar.test.inclusions=**/tests/**
 
   docker-build-all:
-    needs: [build-frontend, test-order-service, test-auth-service, test-product-service, test-payment-service, test-rating-service]
+    needs: [build-frontend, test-services]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

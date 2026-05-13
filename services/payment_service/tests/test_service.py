@@ -97,6 +97,8 @@ def test_set_subscription_tier_create(mock_post, payment_service, mock_repositor
     mock_sub = models.Subscription(id=1, user_id=5, tier=models.SubscriptionTier.PRO)
     mock_repository.create_subscription.return_value = mock_sub
 
+    mock_post.return_value = MagicMock(status_code=200, json=lambda: {"status": "ok"})
+
     response = payment_service.set_subscription_tier(5, models.SubscriptionTier.PRO)
 
     mock_repository.create_subscription.assert_called_once()
@@ -112,6 +114,8 @@ def test_set_subscription_tier_create(mock_post, payment_service, mock_repositor
 def test_set_subscription_tier_update(mock_post, payment_service, mock_repository):
     existing_sub = models.Subscription(id=1, user_id=5, tier=models.SubscriptionTier.FREE)
     mock_repository.get_subscription_by_user.return_value = existing_sub
+
+    mock_post.return_value = MagicMock(status_code=200, json=lambda: {"status": "ok"})
 
     response = payment_service.set_subscription_tier(5, models.SubscriptionTier.VIP)
 

@@ -81,15 +81,16 @@ class ProductViewSet(viewsets.ModelViewSet):
             qs = qs.filter(stock__gt=0)
 
         # Annotate for out_of_stock penalty (if stock == 0 -> penalty)
-        qs = qs.annotate(
-            out_of_stock_penalty=Case(
-                When(stock=0, then=Value(1)),
-                default=Value(0),
-                output_field=IntegerField(),
-            )
-        )
+        from .ranking_strategies import RankingContext, DefaultRankingStrategy, RatingRankingStrategy
         
-        return qs.order_by('out_of_stock_penalty', '-is_premium', '-created_at')
+        ranking_type = self.request.query_params.get('ranking', 'default')
+        if ranking_type == 'rating':
+            strategy = RatingRankingStrategy()
+        else:
+            strategy = DefaultRankingStrategy()
+            
+        context = RankingContext(strategy)
+        return context.execute_ranking(qs)
 
     def perform_create(self, serializer):
         if not self.request.user.is_authenticated:

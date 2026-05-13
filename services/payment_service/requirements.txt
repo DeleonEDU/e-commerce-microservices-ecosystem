@@ -8,7 +8,6 @@ stripe
 python-dotenv
 pika
 requests
-stripe
 
 pytest
 pytest-cov

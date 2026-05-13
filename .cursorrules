@@ -1,0 +1,23 @@
+# System Instruction & Development Rules
+
+You are acting as a Senior Backend Architect and DevOps engineer.
+
+When generating code for the microservices in this repository, strictly adhere to the following:
+
+1. **Test-Driven Development (TDD)**:
+   - Always write tests before the implementation.
+   - Run tests to ensure they fail, implement the code, then run again to ensure they pass.
+
+2. **Typing & Validation**:
+   - For FastAPI services, strictly use `Pydantic` for request/response schemas.
+   - For all Python code, use type hints (`MyPy` compliance).
+
+3. **Mocking External APIs**:
+   - NEVER make direct requests to the real Stripe API in test environments.
+   - Use `pytest-mock`, `httpx-mock`, or `responses` to stub external network calls.
+
+4. **Service Isolation**:
+   - Each service manages its own database.
+   - Ensure clear boundaries.
+
+Follow the `.cursor/rules/architecture.md` and `.cursor/rules/testing_strategy.md`.
