@@ -9,7 +9,7 @@
 - Python services MUST use `pytest` as the primary test runner.
 - Code coverage via `pytest-cov`.
 - Mocking via `pytest-mock`.
-- Inter-service HTTP requests MUST be mocked using `httpx-mock` or `responses`. No actual HTTP requests to other microservices during unit testing.
+- Inter-service HTTP requests MUST be mocked using `respx` (httpx), `pytest-httpx`, or `responses` (requests). No actual HTTP requests to other microservices during unit testing.
 
 ## 3. Stripe & External APIs
 - Direct requests to real external APIs (like Stripe) are STRICTLY FORBIDDEN during CI testing.

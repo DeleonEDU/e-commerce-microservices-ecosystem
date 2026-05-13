@@ -14,7 +14,7 @@ When generating code for the microservices in this repository, strictly adhere t
 
 3. **Mocking External APIs**:
    - NEVER make direct requests to the real Stripe API in test environments.
-   - Use `pytest-mock`, `httpx-mock`, or `responses` to stub external network calls.
+   - Use `pytest-mock`, `respx` (for httpx), or `responses` (for requests) to stub external network calls.
 
 4. **Service Isolation**:
    - Each service manages its own database.
