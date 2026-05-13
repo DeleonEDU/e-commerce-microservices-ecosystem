@@ -11,7 +11,7 @@
 ## 2. SonarCloud & Quality Gate
 - Connect your repository to SonarCloud.
 - Obtain the `SONAR_TOKEN` and add it to GitHub Repository Secrets.
-- **CI vs Automatic Analysis (AutoScan):** SonarCloud allows only one analysis mode per project. This repo uses **GitHub Actions** (`SonarSource/sonarqube-scan-action`). In SonarCloud open **Project → Administration → Analysis Method** (or **Project configuration → Automatic Analysis**) and **turn off Automatic Analysis**. If AutoScan stays on, the CI step fails with: *"You are running CI analysis while Automatic Analysis is enabled."*  
+- **CI vs Automatic Analysis (AutoScan):** SonarCloud allows only one analysis mode per project. This repo uses **GitHub Actions** (`SonarSource/sonarqube-scan-action@v6`). In SonarCloud open **Project → Administration → Analysis Method** (or **Project configuration → Automatic Analysis**) and **turn off Automatic Analysis**. If AutoScan stays on, the CI step fails with: *"You are running CI analysis while Automatic Analysis is enabled."*  
   - AutoScan page example: `https://sonarcloud.io/project/configuration/AutoScan?id=<your_project_key>`
 - In SonarCloud, define a Quality Gate with the following constraints:
   - **Coverage on New Code** >= 70%
@@ -28,5 +28,5 @@
 - Django services use `auth_service.settings_test` and `product_service.settings_test` (SQLite + in-memory cache) so tests do not require PostgreSQL or Redis in CI.
 
 ## 4. Sonar configuration
-- Root file `sonar-project.properties` holds defaults; the GitHub Action still passes `-Dsonar.projectKey` / `-Dsonar.organization` — align them with your SonarCloud project.
+- Root file `sonar-project.properties` holds `sonar.projectKey`, `sonar.organization`, scope, and `sonar.python.coverage.reportPaths` (CI downloads coverage under `coverage-reports/**`). Keep them aligned with your SonarCloud project.
 - The `sonarcloud` job always runs after tests; add **`SONAR_TOKEN`** in repository secrets or that job will fail (GitHub does not allow `secrets` in job `if`, so conditional skip is not used).

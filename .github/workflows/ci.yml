@@ -92,21 +92,14 @@ jobs:
         with:
           path: coverage-reports
       # Use sonarqube-scan-action (sonarcloud-github-action is deprecated).
-      # SonarCloud: disable "Automatic Analysis" in the project or CI scan fails with:
+      # SonarCloud: Administration → Analysis Method → disable "Automatic Analysis"
+      # when using this job, or the scan fails with:
       # "You are running CI analysis while Automatic Analysis is enabled."
       - name: SonarQube Cloud scan
-        uses: SonarSource/sonarqube-scan-action@v5
+        uses: SonarSource/sonarqube-scan-action@v6
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        with:
-          args: >
-            -Dsonar.projectKey=DeleonEDU_e-commerce-microservices-ecosystem
-            -Dsonar.organization=deleonedu
-            -Dsonar.python.coverage.reportPaths=coverage-reports/**/coverage.xml
-            -Dsonar.sources=services/
-            -Dsonar.tests=services/
-            -Dsonar.test.inclusions=**/tests/**
 
   docker-build-all:
     needs: [build-frontend, test-services]
