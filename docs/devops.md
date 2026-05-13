@@ -27,4 +27,4 @@
 
 ## 4. Sonar configuration
 - Root file `sonar-project.properties` holds defaults; the GitHub Action still passes `-Dsonar.projectKey` / `-Dsonar.organization` — align them with your SonarCloud project.
-- If `SONAR_TOKEN` is not set in repository secrets, the `sonarcloud` job is skipped (other jobs still run).
+- The `sonarcloud` job always runs after tests; add **`SONAR_TOKEN`** in repository secrets or that job will fail (GitHub does not allow `secrets` in job `if`, so conditional skip is not used).

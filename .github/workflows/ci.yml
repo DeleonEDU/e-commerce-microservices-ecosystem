@@ -74,7 +74,6 @@ jobs:
 
   sonarcloud:
     needs: [test-services]
-    if: ${{ secrets.SONAR_TOKEN != '' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
