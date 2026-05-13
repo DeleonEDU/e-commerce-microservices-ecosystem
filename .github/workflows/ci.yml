@@ -9,68 +9,75 @@ on:
 jobs:
   build-frontend:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
     steps:
       - uses: actions/checkout@v4
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
       - name: Install dependencies
-        run: cd frontend && npm ci
+        run: npm ci
       - name: Lint
-        run: cd frontend && npm run lint
+        run: npm run lint
       - name: Build frontend
-        run: cd frontend && npm run build
+        run: npm run build
 
   test-services:
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         service: [auth_service, product_service, order_service, payment_service, rating_service]
     steps:
-    - uses: actions/checkout@v4
-    
-    - name: Set up Python 3.10
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.10'
-        cache: 'pip'
-        
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install -r services/${{ matrix.service }}/requirements.txt
-        pip install pytest pytest-cov pytest-mock pytest-django httpx-mock flake8
-        
-    - name: Lint with flake8
-      run: |
-        flake8 services/${{ matrix.service }} --count --select=E9,F63,F7,F82 --show-source --statistics
-        flake8 services/${{ matrix.service }} --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
-        
-    - name: Test with pytest and generate coverage
-      run: |
-        export PYTHONPATH=services/${{ matrix.service }}
-        cd services/${{ matrix.service }}
-        if [ "${{ matrix.service }}" = "auth_service" ]; then
-          pytest users/tests.py tests/ --cov=. --cov-report=xml --cov-report=html --cov-fail-under=70
-        elif [ "${{ matrix.service }}" = "product_service" ]; then
-          pytest catalog/tests.py tests/ --cov=. --cov-report=xml --cov-report=html --cov-fail-under=70
-        elif [ -d "tests" ]; then
-          pytest tests/ --cov=. --cov-report=xml --cov-report=html --cov-fail-under=70
-        else
-          echo "No tests directory for ${{ matrix.service }}"
-          exit 1
-        fi
-        
-    - name: Upload HTML/XML reports as artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: coverage-report-${{ matrix.service }}
-        path: |
-          services/${{ matrix.service }}/coverage.xml
-          services/${{ matrix.service }}/htmlcov/
-        retention-days: 7
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+          cache: 'pip'
+          cache-dependency-path: services/${{ matrix.service }}/requirements.txt
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r services/${{ matrix.service }}/requirements.txt
+          pip install pytest pytest-cov pytest-mock pytest-django httpx-mock flake8
+
+      - name: Lint with flake8
+        run: |
+          EXCL='venv,.venv,node_modules,htmlcov,.pytest_cache,migrations,__pycache__,.git'
+          flake8 services/${{ matrix.service }} --exclude="$EXCL" --count --select=E9,F63,F7,F82 --show-source --statistics
+          flake8 services/${{ matrix.service }} --exclude="$EXCL" --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+
+      - name: Test with pytest and generate coverage
+        run: |
+          export PYTHONPATH=services/${{ matrix.service }}
+          cd services/${{ matrix.service }}
+          if [ "${{ matrix.service }}" = "auth_service" ]; then
+            pytest users/tests.py tests/ --cov=. --cov-report=xml --cov-report=html --cov-fail-under=70
+          elif [ "${{ matrix.service }}" = "product_service" ]; then
+            pytest catalog/tests.py tests/ --cov=. --cov-report=xml --cov-report=html --cov-fail-under=70
+          elif [ -d "tests" ]; then
+            pytest tests/ --cov=. --cov-report=xml --cov-report=html --cov-fail-under=70
+          else
+            echo "No tests directory for ${{ matrix.service }}"
+            exit 1
+          fi
+
+      - name: Upload HTML/XML reports as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report-${{ matrix.service }}
+          path: |
+            services/${{ matrix.service }}/coverage.xml
+            services/${{ matrix.service }}/htmlcov/
+          retention-days: 7
 
   sonarcloud:
     needs: [test-services]
