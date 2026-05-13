@@ -92,7 +92,7 @@ jobs:
         with:
           args: >
             -Dsonar.projectKey=DeleonEDU_e-commerce-microservices-ecosystem
-            -Dsonar.organization=DeleonEDU
+            -Dsonar.organization=deleonedu
             -Dsonar.python.coverage.reportPaths=coverage-reports/**/coverage.xml
             -Dsonar.sources=services/
             -Dsonar.tests=services/
