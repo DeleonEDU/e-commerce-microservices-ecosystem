@@ -80,8 +80,27 @@ jobs:
             services/${{ matrix.service }}/htmlcov/
           retention-days: 7
 
+  test-ecosystem:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+          cache: 'pip'
+          cache-dependency-path: tests/requirements.txt
+      - name: Install ecosystem test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r tests/requirements.txt
+      - name: Run repository governance tests
+        run: |
+          export PYTHONPATH="${GITHUB_WORKSPACE}"
+          pytest tests/ --cov=repo_governance --cov-report=xml --cov-report=html --cov-fail-under=90
+
   sonarcloud:
-    needs: [test-services]
+    needs: [test-services, test-ecosystem]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -102,7 +121,7 @@ jobs:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
   docker-build-all:
-    needs: [build-frontend, test-services]
+    needs: [build-frontend, test-services, test-ecosystem]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
