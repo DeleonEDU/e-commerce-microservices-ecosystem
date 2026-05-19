@@ -156,7 +156,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onSuccess,
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4">
       <div 
         className="bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden animate-fade-in"
         onClick={e => e.stopPropagation()}

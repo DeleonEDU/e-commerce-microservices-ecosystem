@@ -604,7 +604,7 @@ const SellerDashboardPage: React.FC = () => {
       {/* Store Settings Modal */}
       {isStoreSettingsModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => setIsStoreSettingsModalOpen(false)} />
+          <div className="absolute inset-0 bg-slate-900/60" onClick={() => setIsStoreSettingsModalOpen(false)} />
           <div className="relative bg-white rounded-[40px] p-8 max-w-lg w-full shadow-2xl animate-fade-in border border-slate-100">
             <div className="flex items-center justify-between mb-8">
               <div>
@@ -693,7 +693,7 @@ const SellerDashboardPage: React.FC = () => {
       {/* Order Details Modal for Seller */}
       {selectedSaleDetails && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => setSelectedSaleDetails(null)} />
+          <div className="absolute inset-0 bg-slate-900/60" onClick={() => setSelectedSaleDetails(null)} />
           <div className="relative bg-white rounded-[40px] p-8 max-w-lg w-full shadow-2xl animate-fade-in text-left border border-slate-100">
             <div className="flex items-center justify-between mb-8">
               <div>

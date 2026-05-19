@@ -31,7 +31,7 @@ const AlertModal: React.FC<AlertModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={onClose} />
+      <div className="absolute inset-0 bg-slate-900/60" onClick={onClose} />
       <div className="relative bg-white rounded-[32px] p-8 max-w-sm w-full shadow-2xl animate-fade-in text-center">
         <button 
           onClick={onClose}
